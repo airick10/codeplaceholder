@@ -1,10 +1,6 @@
 <html>
 <head>
 <title>Eric's Knowledgebase</title>
-<link rel='icon' type='image/png' href='images/elibrary.png'>
-<link rel='stylesheet' type='text/css' href='librarystyle.css'>
-<link rel='stylesheet' href='https://pro.fontawesome.com/releases/v5.5.0/css/all.css' integrity='sha384-j8y0ITrvFafF4EkV1mPW0BKm6dp3c+J9Fky22Man50Ofxo2wNe5pT1oZejDH9/Dt' crossorigin='anonymous'>
-<link href='https://fonts.googleapis.com/css?family=Baloo+Thambi|IBM+Plex+Mono|Cabin' rel='stylesheet'>
 <script src="jquery-3.6.0.js"></script>
 <script>
 $(function(){
@@ -63,7 +59,6 @@ $(function(){
 </head>
 <body>
 <div id="header"></div>
-<a href='index.html'>Home</a>
 <p>
 <ul>
 <li><a href="https://docs.fluentd.org/" target="new_window">Fluentd Docs</a>
@@ -75,11 +70,11 @@ Fluentd is a log collecting tool that allows you to collect logs from one (or mu
 <div class="mainbody linux">
 <p>
 <div class="section linux" >
-	<div class="detailsbox"><b>Run Test Script (Optional)</b> You can run a test script that will just loop through and create logs.  This is optional, but if you want to test you have fluentd set up, it's good to have this running.
-	<br>
-	Run this as whatever name, but calling this 'logify.sh' for now.  This script will loop through and generate logs from the create_log_entry() function.  Simple.
-	</div>
-	<div class="codebox" data-copy-text="#!/bin/bash
+  <div class="detailsbox"><b>Run Test Script (Optional)</b> You can run a test script that will just loop through and create logs.  This is optional, but if you want to test you have fluentd set up, it's good to have this running.
+  <br>
+  Run this as whatever name, but calling this 'logify.sh' for now.  This script will loop through and generate logs from the create_log_entry() function.  Simple.
+  </div>
+  <div class="codebox" data-copy-text="#!/bin/bash
 filepath=&quot;/var/log/logify/app.log&quot;
 
 create_log_entry() {
@@ -101,7 +96,7 @@ while true; do
     echo &quot;${log_record}&quot; >> &quot;${filepath}&quot;
     sleep 3
 done">
-	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
 <pre>
 <code>
 #!/bin/bash
@@ -128,17 +123,17 @@ while true; do
 done
 </code>
 </pre>
-	</div>
+  </div>
 </div>
 
 <div class="section linux" >
-	<div class="detailsbox"><b>Run Test Script (Optional)</b> Save the file and make it executable.  Run it in the background.  You don't have to run it right away, but the last command gives you the command to run it.
-	</div>
-	<div class="codebox" data-copy-text="chmod +x logify.sh
+  <div class="detailsbox"><b>Run Test Script (Optional)</b> Save the file and make it executable.  Run it in the background.  You don't have to run it right away, but the last command gives you the command to run it.
+  </div>
+  <div class="codebox" data-copy-text="chmod +x logify.sh
 sudo mkdir /var/log/logify
 sudo chown -R $USER:$USER /var/log/logify/
 ">
-	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
 <pre>
 <code>
 --- Make file executable ---
@@ -154,24 +149,24 @@ sudo chown -R $USER:$USER /var/log/logify/
 # ./logify.sh &
 </code>
 </pre>
-	</div>
+  </div>
 </div>
 
 <div class="section linux" >
-	<div class="detailsbox"><b>Installation</b> Fluentd isn't exactly a straight up install, but you can pull down rpm packages and run a msi that pretty much works.  It also can be a docker container, which can be covered later.
-	<br>
-	<a href="https://docs.fluentd.org/installation/install-by-rpm">RH/Centos</a>
-	<br>
-	<a href="https://docs.fluentd.org/installation/install-by-deb">Debian/Ubuntu</a>
-	<br>
-	<a href="https://docs.fluentd.org/installation/install-by-msi">Windows</a>
-	<br>
-	<a href="https://docs.fluentd.org/installation/install-by-dmg">MacOS</a>
-	<br>
-	Once done, the linux path for the conf file is usually /etc/fluent/fluentd.conf.  
-	</div>
-	<div class="codebox" data-copy-text="sudo systemctl restart fluentd">
-	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <div class="detailsbox"><b>Installation</b> Fluentd isn't exactly a straight up install, but you can pull down rpm packages and run a msi that pretty much works.  It also can be a docker container, which can be covered later.
+  <br>
+  <a href="https://docs.fluentd.org/installation/install-by-rpm">RH/Centos</a>
+  <br>
+  <a href="https://docs.fluentd.org/installation/install-by-deb">Debian/Ubuntu</a>
+  <br>
+  <a href="https://docs.fluentd.org/installation/install-by-msi">Windows</a>
+  <br>
+  <a href="https://docs.fluentd.org/installation/install-by-dmg">MacOS</a>
+  <br>
+  Once done, the linux path for the conf file is usually /etc/fluent/fluentd.conf.  
+  </div>
+  <div class="codebox" data-copy-text="sudo systemctl restart fluentd">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
 <pre>
 <code>
 --- Once done, verify the install ---
@@ -187,106 +182,104 @@ sudo chown -R $USER:$USER /var/log/logify/
 /var/log/fluent/fluentd.log
 </code>
 </pre>
-	</div>
+  </div>
 </div>
 
 <div class="section linux" >
-	<div class="detailsbox"><b>Config - Source Blocks - Input Plugins</b> <a href='https://docs.fluentd.org/input'>Link</a>: This the configuration needed to tell fluentd where the logs are that you want to collect.  This is for a straight up file.
-	<br>
-	<b>@type</b> - What type of input plugin this is.  'tail' allows Fluentd to read events from the tail of text files  
-	<br>
-	<b>format</b> - What format is this log in?
-	<br>
-	<b>read_from_head</b> - Does fluentd start at the beginning of the file?  True or false
-	<br>
-	<b>tag</b> - The ID of this block, essentially.  Will need this tag to link up with a 'match' block.
-	<br>
-	<b>path</b> - The path of where this log is so fluentd can find it.
-	<br>
-	<b>pos_file</b> - A file used for fluentd to track where in the log it needs to start over in case there's an interruption.
-	</div>
-	<div class="codebox" data-copy-text="&lt;source&gt;
-	@type tail
-	format json
-	read_from_head true
-	tag file-myapp.log
-	path /fluentd/log/files/example-log.log
-	pos_file /tmp/example-log.log.pos
+  <div class="detailsbox"><b>Config - Source Blocks - Input Plugins</b> <a href='https://docs.fluentd.org/input'>Link</a>: This the configuration needed to tell fluentd where the logs are that you want to collect.  This is for a straight up file.
+  <br>
+  <b>@type</b> - What type of input plugin this is.  'tail' allows Fluentd to read events from the tail of text files  
+  <br>
+  <b>format</b> - What format is this log in?  It could be json, but here is none
+  <br>
+  <b>read_from_head</b> - Does fluentd start at the beginning of the file?  True or false
+  <br>
+  <b>tag</b> - The ID of this block, essentially.  Will need this tag to link up with a 'match' block.
+  <br>
+  <b>path</b> - The path of where this log is so fluentd can find it.
+  <br>
+  <b>pos_file</b> - A file used for fluentd to track where in the log it needs to start over in case there's an interruption.
+  </div>
+  <div class="codebox" data-copy-text="&lt;source&gt;
+  @type tail
+  path /var/log/logify/app.log
+  pos_file /var/log/fluent/file.log.pos
+  tag logify.logs
+  format none
 &lt;/source&gt;">
-	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
 <pre>
 <code>
 --- fluentd.conf ---
 &lt;source&gt;
-	@type tail
-	format json
-	read_from_head true
-	tag logify.log
-	path /var/log/logify/app.log
-	pos_file /tmp/example-log.log.pos
+  @type tail
+  path /var/log/logify/app.log
+  pos_file /var/log/fluent/file.log.pos
+  tag logify.logs
+  format none
 &lt;/source&gt;
 </code>
 </pre>
-	</div>
+  </div>
 </div>
 
 
 <div class="section linux" >
-	<div class="detailsbox"><b>Config - Source Blocks - Input Plugins</b> Same idea, but this input block is used to run on a cloud service or http server that you can't install fluentd.  However, you can set this to write to some sort of http endpoint.
-	<br>
-	<b>@type</b> - What type of input plugin this is.  'http' says this is a web server or cloud service.
-	<br>
-	<b>port</b> - What port fluentd can expect the logs?
-	<br>
-	<b>bind</b> - The IP address to bind to.
-	<br>
-	<b>body_size_limit</b> - Size limit of the logs
-	<br>
-	<b>keepalive_timeout</b> - Keep the connection open for this amount of time.
-	</div>
-	<div class="codebox" data-copy-text="&lt;source&gt;
-	@type http
-	port 9880
-	bind 0.0.0.0
-	body_size_limit 32m
-	keepalive_timeout 10s
+  <div class="detailsbox"><b>Config - Source Blocks - Input Plugins</b> Same idea, but this input block is used to run on a cloud service or http server that you can't install fluentd.  However, you can set this to write to some sort of http endpoint.
+  <br>
+  <b>@type</b> - What type of input plugin this is.  'http' says this is a web server or cloud service.
+  <br>
+  <b>port</b> - What port fluentd can expect the logs?
+  <br>
+  <b>bind</b> - The IP address to bind to.
+  <br>
+  <b>body_size_limit</b> - Size limit of the logs
+  <br>
+  <b>keepalive_timeout</b> - Keep the connection open for this amount of time.
+  </div>
+  <div class="codebox" data-copy-text="&lt;source&gt;
+  @type http
+  port 9880
+  bind 0.0.0.0
+  body_size_limit 32m
+  keepalive_timeout 10s
 &lt;/source&gt;">
-	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
 <pre>
 <code>
 --- fluentd.conf ---
 &lt;source&gt;
-	@type http
-	port 9880
-	bind 0.0.0.0
-	body_size_limit 32m
-	keepalive_timeout 10s
+  @type http
+  port 9880
+  bind 0.0.0.0
+  body_size_limit 32m
+  keepalive_timeout 10s
 &lt;/source&gt;
 </code>
 </pre>
-	</div>
+  </div>
 </div>
 
 <div class="section linux" >
-	<div class="detailsbox"><b>Config - Source Blocks - Filters (Optional)</b> <a href='https://docs.fluentd.org/filter'>Link</a>: You can use filter plugins to modify the logs that are output.  Use these to replace or add, among other actions.
-	<br>
-	In the 'match' block, the tag from the input block comes immediately after in the tag.  This is why tags are important.  So fluentd can tell which log you want to go to which output.
-	<br>
-	<b>@type</b> - What type of filter plugin this is.  'record_transformer' is used to add/delete/modify events.
-	<br>
-	<b>remove_keys</b> - Since the logs are in JSON format, you can look for specific keys and omit them from the logs.  Here, I'm removing 'emailAddress'.
-	<br>
-	<b>Record Tag</b> - Here, I'm adding a field for the log.  I'm calling the key 'hostname'.  The value is the hostname of the computer.  Socket.gethostname provides that value.  Also I'm adding a timestamp in a more formatted look.
-	</div>
-	<div class="codebox" data-copy-text="&lt;filter logify.log&gt;
+  <div class="detailsbox"><b>Config - Source Blocks - Filters (Optional)</b> <a href='https://docs.fluentd.org/filter'>Link</a>: You can use filter plugins to modify the logs that are output.  Use these to replace or add, among other actions.
+  <br>
+  In the 'match' block, the tag from the input block comes immediately after in the tag.  This is why tags are important.  So fluentd can tell which log you want to go to which output.
+  <br>
+  <b>@type</b> - What type of filter plugin this is.  'record_transformer' is used to add/delete/modify events.
+  <br>
+  <b>remove_keys</b> - Since the logs are in JSON format, you can look for specific keys and omit them from the logs.  Here, I'm removing 'emailAddress'.
+  <br>
+  <b>Record Tag</b> - Here, I'm adding a field for the log.  I'm calling the key 'hostname'.  The value is the hostname of the computer.  Socket.gethostname provides that value.  Also I'm adding a timestamp in a more formatted look.
+  </div>
+  <div class="codebox" data-copy-text="&lt;filter logify.log&gt;
   @type record_transformer
   remove_keys emailAddress
   &lt;record&gt;
     hostname &quot;#{Socket.gethostname}&quot;
-	timestamp ${Time.at(record[&quot;timestamp&quot;]).strftime(&quot;%Y-%m-%dT%H:%M:%S.%L%z&quot;)}
+  timestamp ${Time.at(record[&quot;timestamp&quot;]).strftime(&quot;%Y-%m-%dT%H:%M:%S.%L%z&quot;)}
   &lt;/record&gt;
 &lt;/filter&gt;">
-	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
 <pre>
 <code>
 --- fluentd.conf ---
@@ -295,20 +288,20 @@ sudo chown -R $USER:$USER /var/log/logify/
   remove_keys emailAddress
   &lt;record&gt;
     hostname &quot;#{Socket.gethostname}&quot;
-	timestamp ${Time.at(record[&quot;timestamp&quot;]).strftime(&quot;%Y-%m-%dT%H:%M:%S.%L%z&quot;)}
+  timestamp ${Time.at(record[&quot;timestamp&quot;]).strftime(&quot;%Y-%m-%dT%H:%M:%S.%L%z&quot;)}
   &lt;/record&gt;
 &lt;/filter&gt;
 </code>
 </pre>
-	</div>
+  </div>
 </div>
 
 <div class="section linux" >
-	<div class="detailsbox"><b>Config - Source Blocks - Filters (Optional)</b> You can also work with conditionals with filters.  Let's say a key has a value you want to check.  You can output based off that.
-	<br>
-	is_successful will look for the key called 'record' and evaluate the value (200), much like an if statement.  If True, output true.  If False, output false.  This displays as a seperate field in the log.
-	</div>
-	<div class="codebox" data-copy-text="&lt;filter logify.log&gt;
+  <div class="detailsbox"><b>Config - Source Blocks - Filters (Optional)</b> You can also work with conditionals with filters.  Let's say a key has a value you want to check.  You can output based off that.
+  <br>
+  is_successful will look for the key called 'record' and evaluate the value (200), much like an if statement.  If True, output true.  If False, output false.  This displays as a seperate field in the log.
+  </div>
+  <div class="codebox" data-copy-text="&lt;filter logify.log&gt;
   ...
   &lt;record&gt;
     hostname &quot;#{Socket.gethostname}&quot;
@@ -316,7 +309,7 @@ sudo chown -R $USER:$USER /var/log/logify/
     is_successful ${record[&quot;status&quot;] == 200 ? &quot;true&quot; : &quot;false&quot;"}
   &lt;/record&gt;
 &lt;/filter&gt;">
-	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
 <pre>
 <code>
 --- fluentd.conf ---
@@ -330,70 +323,74 @@ sudo chown -R $USER:$USER /var/log/logify/
 &lt;/filter&gt;
 </code>
 </pre>
-	</div>
+  </div>
 </div>
 
 <div class="section linux" >
-	<div class="detailsbox"><b>Config - Source Blocks - Output Plugins</b> <a href='https://docs.fluentd.org/output'>Link</a>: Once we have input plugins set up, we need to tell fluentd where to output the logs.  That's where output plugins come in.  They can come in various forms and you can output logs into all kinds of formats (S3, http endpoint, general file, elasticsearch, etc...).  This example just writes to a local file.  Good for testing.
-	<br>
-	In the 'match' block, the tag from the input block comes immediately after in the tag.  This is why tags are important.  So fluentd can tell which log you want to go to which output.
-	<br>
-	<b>@type</b> - What type of output plugin this is.  'file' just outputs the logs collected to a single local file.
-	<br>
-	<b>path</b> - The path of the file you want to output to.
-	</div>
-	<div class="codebox" data-copy-text="&lt;match logify.log&gt;
-	@type file
-	path /output/logify.log
+  <div class="detailsbox"><b>Config - Source Blocks - Output Plugins</b> <a href='https://docs.fluentd.org/output'>Link</a>: Once we have input plugins set up, we need to tell fluentd where to output the logs.  That's where output plugins come in.  They can come in various forms and you can output logs into all kinds of formats (S3, http endpoint, general file, elasticsearch, etc...).  This example just writes to a local file.  Good for testing.
+  <br>
+  In the 'match' block, the tag from the input block comes immediately after in the tag.  This is why tags are important.  So fluentd can tell which log you want to go to which output.
+  <br>
+  <b>@type</b> - What type of output plugin this is.  'file' just outputs the logs collected to a single local file. 'stdout' just writes the stdout to the console with 'sudo fluentd' is ran.
+  <br>
+  <b>path</b> - The path of the file you want to output to.
+  </div>
+  <div class="codebox" data-copy-text="&lt;match logify.log&gt;
+  @type file
+  path /output/logify.log
 &lt;/match&gt;">
-	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
 <pre>
 <code>
 --- fluentd.conf ---
 &lt;match logify.log&gt;
-	@type file
-	path /output/logify.log
+  @type file
+  path /output/logify.log
+&lt;/match&gt;
+
+&lt;match logify.log&gt;
+  @type stdout
 &lt;/match&gt;
 </code>
 </pre>
-	</div>
+  </div>
 </div>
 
 
 <div class="section linux" >
-	<div class="detailsbox"><b>Config</b> You can also just put includes and have the source blocks listed in seperate files.  Much like PHP.  Save these into fluent.conf.
-	</div>
-	<div class="codebox" data-copy-text="@include fluentd-source-block.conf">
-	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <div class="detailsbox"><b>Config</b> You can also just put includes and have the source blocks listed in seperate files.  Much like PHP.  Save these into fluent.conf.
+  </div>
+  <div class="codebox" data-copy-text="@include fluentd-source-block.conf">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
 <pre>
 <code>
 @include fluentd-source-block.conf
 @include fluentd-match-block.conf
 </code>
 </pre>
-	</div>
+  </div>
 </div>
 
 <div class="section linux" >
-	<div class="detailsbox"><b>Config</b> Once done with the config, it's not a bad idea to go through a dry run and make sure the configs all work.
-	</div>
-	<div class="codebox" data-copy-text="sudo fluentd -c /etc/fluent/fluentd.conf -dry-run">
-	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <div class="detailsbox"><b>Config</b> Once done with the config, it's not a bad idea to go through a dry run and make sure the configs all work.
+  </div>
+  <div class="codebox" data-copy-text="sudo fluentd -c /etc/fluent/fluentd.conf -dry-run">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
 <pre>
 <code>
 # sudo fluentd -c /etc/fluent/fluentd.conf -dry-run
 </code>
 </pre>
-	</div>
+  </div>
 </div>
 
 
 <div class="section linux" >
-	<div class="detailsbox">Now you can run the application in the background and then run fluentd.  You should see the logs appear.
-	</div>
-	<div class="codebox" data-copy-text="./logify.sh &
+  <div class="detailsbox">Now you can run the application in the background and then run fluentd.  You should see the logs appear.
+  </div>
+  <div class="codebox" data-copy-text="./logify.sh &
 sudo fluentd">
-	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
 <pre>
 <code>
 # ./logify.sh &
@@ -403,7 +400,7 @@ sudo fluentd">
 sudo fluentd -c &lt;/path/to/fluentd.conf&gt;
 </code>
 </pre>
-	</div>
+  </div>
 </div>
 
 </div>
