@@ -1,6 +1,10 @@
 <html>
 <head>
 <title>Eric's Knowledgebase</title>
+<link rel='icon' type='image/png' href='images/elibrary.png'>
+<link rel='stylesheet' type='text/css' href='librarystyle.css'>
+<link rel='stylesheet' href='https://pro.fontawesome.com/releases/v5.5.0/css/all.css' integrity='sha384-j8y0ITrvFafF4EkV1mPW0BKm6dp3c+J9Fky22Man50Ofxo2wNe5pT1oZejDH9/Dt' crossorigin='anonymous'>
+<link href='https://fonts.googleapis.com/css?family=Baloo+Thambi|IBM+Plex+Mono|Cabin' rel='stylesheet'>
 <script src="jquery-3.6.0.js"></script>
 <script>
 $(function(){
@@ -61,9 +65,10 @@ $(function(){
 <div id="header"></div>
 <p>
 <ul>
-<li><a href="https://docs.fluentd.org/" target="new_window">Fluentd Docs</a>
-<li><a href="https://betterstack.com/community/guides/logging/fluentd-explained/" target='new_window'>Good Link</a>
-<li><a href="https://hub.docker.com/r/fluent/fluentd/">Fluentd Docker Image</a>
+<li><a href="https://docs.fluentd.org/" target="new_window">Fluentd Docs</a></li>
+<li><a href="https://betterstack.com/community/guides/logging/fluentd-explained/" target='new_window'>Good Link</a></li>
+<li><a href="https://hub.docker.com/r/fluent/fluentd/">Fluentd Docker Image</a></li>
+<li><a href="#docker">Logging Containers & Docker</a></li>
 </ul>
 <br>
 Fluentd is a log collecting tool that allows you to collect logs from one (or multiple sources) and organize them into one (or multiple sources).  This is useful to help keep your logs organized.  Here, we can can explore grabbing logs from a webserver that outputs to a file, a file that outputs to a http endpoint, and various docker containers.
@@ -398,6 +403,133 @@ sudo fluentd">
 
 --- If the conf file is not default, provide the path ---
 sudo fluentd -c &lt;/path/to/fluentd.conf&gt;
+</code>
+</pre>
+  </div>
+</div>
+
+<hr>
+
+
+<div class="section linux" id='docker'>
+  <div class="detailsbox"><b>Logging Containers & Docker</b> - Using docker compose allows you to build out a fluentd container and any other additional images in one yaml file.  You can use this to grab logs from various apps/endpoints and 'match' them to another location.
+  <br>
+  First, you'll need both a dockerfile and an yaml file.  
+  </div>
+  <div class="codebox" data-copy-text="FROM fluent/fluntd:v1.14-1
+
+RUN fluent-gem install fluent-plugin-&lt;plugin-name&gt;
+
+COPY path/to/your/fluentd.conf /fluent/etc/
+
+USER fluentd
+
+CMD [&quot;fluentd&quot;, &quot;-c&quot;, &quot;/fluentd/etc/fluentd.conf&quot;, &quot;-v&quot;]">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+FROM fluent/fluntd:v1.14-1
+
+# Optional, you can install plugins if you want
+# RUN fluent-gem install fluent-plugin-&lt;plugin-name&gt;
+
+# Optional, Add your own config files
+# COPY path/to/your/fluentd.conf /fluent/etc/
+
+# Can use fluentd user or root.  Or whatever
+USER fluentd
+
+# Start Fluentd right away
+CMD [&quot;fluentd&quot;, &quot;-c&quot;, &quot;/fluentd/etc/fluentd.conf&quot;, &quot;-v&quot;]
+</code>
+</pre>
+  </div>
+</div>
+
+<div class="section linux" >
+  <div class="detailsbox"><b>Logging Containers & Docker</b> - Here is a yaml to use.  You'll see there are two services being used.  Fluentd and my alpine image that can run my logify script.  Make sure the dockerfile is in the same folder as this .yaml (or state the custom path in the build/context field.  With fluentd, notice a few fields
+  <br>
+  I'm running this image with the name 'fluentd'.  Running the user as root.  Build/context takes the docker file and builds out the image.  Image applies the fluentd image from dockerhub.
+  <br>
+  <b>Volumes:</b> - Here, I am mounting the directory from the local server to the directory in the docker container.
+  <br>
+  /var/lib/docker/containers is Docker's default directory for containers.  Logs are generally posted here.  I'm mounting to the container's folder that keeps container logs, which is /fluentd/log/containers.
+  <br>
+  /var/log/logify is the server's location for my logify logs.  I'm mounting that to Fluentd's log directory for files.
+  <br>
+  /etc/fluentd is the server's location for fluentd.conf.  I'm mounting that to fluentd's container image location for config, which is in /fluentd/etc/
+  <br>
+  I'm mounting the current directory output file (./output) to the output directory in the container.
+  <br>
+  With the alpine folder, I'm mounting my root directory to /app as I'd have logify.sh running in root in this setup.
+  </div>
+  <div class="codebox" data-copy-text="version: &quot;3&quot;
+services:
+  fluentd:
+    container_name: fluentd
+    user: root
+    build:
+      context: .
+    image: fluentd
+    volumes:
+    - /var/lib/docker/containers:/fluentd/log/containers # Example: Reading docker logs
+    - /var/log/logify:/fluentd/log/files/ #Example: Reading logs from a file
+    - /etc/fluent:/fluentd/etc/
+    - ./output:/output/ # Example: Fluentd will collect logs and store it here for demo
+    logging:
+      driver: &quot;local&quot;
+  # App used in a simple alpine linux container. Can be anything, even the .sh script from above.
+  file-myapp:
+    container_name: file-myapp
+    image: alpine
+    volumes:
+    - ./file:/app
+    command: [ /bin/sh , -c , &quot;chmod +x /app/app.sh && ./app/logify.sh&quot;]">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+--- docker-compose.yaml ---
+version: &quot;3&quot;
+services:
+  fluentd:
+    container_name: fluentd
+    user: root
+    build:
+      context: .
+    image: fluentd
+    volumes:
+    - /var/lib/docker/containers:/fluentd/log/containers # Example: Reading docker logs
+    - /var/log/logify:/fluentd/log/files/ #Example: Reading logs from a file
+    - /etc/fluent:/fluentd/etc/
+    - ./output:/output/ # Example: Fluentd will collect logs and store it here for demo
+    logging:
+      driver: &quot;local&quot;
+  # App used in a simple alpine linux container. Can be anything, even the .sh script from above.
+  file-myapp:
+    container_name: file-myapp
+    image: alpine
+    volumes:
+    - ./:/app
+    command: [ /bin/sh , -c , &quot;chmod +x /app/app.sh && ./app/logify.sh&quot;]
+</code>
+</pre>
+  </div>
+</div>
+
+<div class="section linux" >
+  <div class="detailsbox"><b>Logging Containers & Docker</b> - docker-compose will run this .yaml with multiple services (or just one).  By default, it will look for docker-compose.yml or .yaml.  I can also have a custom name name (eric.yaml).  The dockerfile should be in this same folder as well.
+  <br>
+  -d means that if the container goes down, it'll recreate.  -f means a different (custom) file path.
+  <br>
+  The second command shows running this as a different yaml file.
+  </div>
+  <div class="codebox" data-copy-text="docker-compose up -d">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+docker-compose up -d
+
+docker-compose -f eric.yaml up -d
 </code>
 </pre>
   </div>
