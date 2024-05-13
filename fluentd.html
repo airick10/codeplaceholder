@@ -69,6 +69,7 @@ $(function(){
 <li><a href="https://betterstack.com/community/guides/logging/fluentd-explained/" target='new_window'>Good Link</a></li>
 <li><a href="https://hub.docker.com/r/fluent/fluentd/">Fluentd Docker Image</a></li>
 <li><a href="#docker">Logging Containers & Docker</a></li>
+<li><a href="#kubernetes">Fluentd with Kubernetes</a></li>
 </ul>
 <br>
 Fluentd is a log collecting tool that allows you to collect logs from one (or multiple sources) and organize them into one (or multiple sources).  This is useful to help keep your logs organized.  Here, we can can explore grabbing logs from a webserver that outputs to a file, a file that outputs to a http endpoint, and various docker containers.
@@ -534,5 +535,282 @@ docker-compose -f eric.yaml up -d
 </pre>
   </div>
 </div>
+
+
+<hr>
+
+
+<div class="section" id="kubernetes">
+	<div class="detailsbox"><b>Fluentd setup</b> - You will likely want a configmap to configure fluent.conf.  The docker image for fluentd might have a default config, but you'll likely want to configure that.  You can certainly have many options here, but this is a basic configmap file for use.
+	</div>
+	<div class="codebox" data-copy-text="apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentd-config
+  namespace: fluentd
+data:
+  fluent.conf: | -
+    &lt;source&gt;
+	  @type tail
+	  read_from_head true
+	  tag kubernetes.*
+	  path /var/log/containers/*.log
+	  exclude_path [&quot;/var/log/containers/fluent*&quot;]
+	  &lt;parse>
+	    @type kubernetes
+		@type &quot;#{ENV['FLUENT_CONTAINER_TAIL_PARSER_TYPE'] || 'json'}&quot;
+		time_format %Y-%m-%dT%H:%M:%S.%NZ
+	  &lt;/parse&gt;
+	&lt;/source&gt;
+	
+	&lt;filter kubernetes.**&gt;
+	  @type kubernetes_metadata
+	  @id filter_kube_metadata
+      kubernetes_url &quot;#{ENV['FLUENT_FILTER_KUBERNETES_URL'] || 'https://' + ENV.fetch('KUBERNETES_SERVICE_HOST') + ':' + ENV.fetch('KUBE_SERVICE_PORT') + '/api'}&quot;
+	  verify_ssl &quot;#{ENV['KUBERNETES_VERIFY_SSL'] || true}&quot;
+	  ca_file &quot;#{ENV['KUBERNETES_CA_FILE']}&quot;
+	  skip_labels &quot;#{ENV['FLUENT_KUBERNETES_METADATA_SKIP_LABELS'] || 'false'}&quot;
+	  skip_container_metadata &quot;#{ENV['FLUENT_KUBERNETES_METADATA_SKIP_CONTAINER_METADATA'] || 'false'}&quot;
+	  skip_master_url &quot;#{ENV['FLUENT_KUBERNETES_METADATA_MASTER_URL'] || 'false'}&quot;
+	  skip_namespace_metadata &quot;#{ENV['FLUENT_KUBERNETES_METADATA_SKIP_NAMESPACE_METADATA'] || 'false'}&quot;
+	 &lt;/filter>
+	 
+	 &lt;match **&gt;
+	   @type file
+	   path /tmp/file-test.log
+	 &lt;/match&gt;">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+--- Create Namespace ---
+
+# kubectl create namespace fluentd
+
+--- ConfigMap Yaml (COPY BTN) ---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentd-config
+  namespace: fluentd
+data:
+  fluent.conf: | -
+    &lt;source&gt;
+	  @type tail
+	  read_from_head true
+	  tag kubernetes.*
+	  path /var/log/containers/*.log
+	  exclude_path [&quot;/var/log/containers/fluent*&quot;]
+	  &lt;parse>
+	    @type kubernetes
+		@type &quot;#{ENV['FLUENT_CONTAINER_TAIL_PARSER_TYPE'] || 'json'}&quot;
+		time_format %Y-%m-%dT%H:%M:%S.%NZ
+	  &lt;/parse&gt;
+	&lt;/source&gt;
+	
+	&lt;filter kubernetes.**&gt;
+	  @type kubernetes_metadata
+	  @id filter_kube_metadata
+      kubernetes_url &quot;#{ENV['FLUENT_FILTER_KUBERNETES_URL'] || 'https://' + ENV.fetch('KUBERNETES_SERVICE_HOST') + ':' + ENV.fetch('KUBE_SERVICE_PORT') + '/api'}&quot;
+	  verify_ssl &quot;#{ENV['KUBERNETES_VERIFY_SSL'] || true}&quot;
+	  ca_file &quot;#{ENV['KUBERNETES_CA_FILE']}&quot;
+	  skip_labels &quot;#{ENV['FLUENT_KUBERNETES_METADATA_SKIP_LABELS'] || 'false'}&quot;
+	  skip_container_metadata &quot;#{ENV['FLUENT_KUBERNETES_METADATA_SKIP_CONTAINER_METADATA'] || 'false'}&quot;
+	  skip_master_url &quot;#{ENV['FLUENT_KUBERNETES_METADATA_MASTER_URL'] || 'false'}&quot;
+	  skip_namespace_metadata &quot;#{ENV['FLUENT_KUBERNETES_METADATA_SKIP_NAMESPACE_METADATA'] || 'false'}&quot;
+	 &lt;/filter>
+	 
+	 &lt;match **&gt;
+	   @type file
+	   path /tmp/file-test.log
+	 &lt;/match&gt;
+	  
+</code>
+</pre>
+	</div>
+</div>
+
+
+
+<div class="section">
+	<div class="detailsbox"><b>Fluentd setup</b> - <a href='https://github.com/fluent/fluentd-kubernetes-daemonset/blob/master/fluentd-daemonset-forward.yaml' target='new_window'>GitHub Repo</a> - Here is a YAML for a generic setup for Fluentd.  Using fluent/fluentd-kubernetes-daemonset:v1.14-debian-forward-amd64-1 as a general setup. Update the namespace if you wish to use a different namespace.  <a href='http://rontoe.com/library/yaml/fluentd-general.yml'>YAML FILE</a></div>
+	<div class="codebox" data-copy-text="apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentd
+  namespace: fluentd
+  labels:
+    k8s-app: fluentd-logging
+    version: v1
+spec:
+  selector:
+    matchLabels:
+      k8s-app: fluentd-logging
+      version: v1
+  template:
+    metadata:
+      labels:
+        k8s-app: fluentd-logging
+        version: v1
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      containers:
+      - name: fluentd
+        image: fluent/fluentd-kubernetes-daemonset:v1.14-debian-forward-amd64-1
+        resources:
+          limits:
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+        # When actual pod logs in /var/lib/docker/containers, the following lines should be used.
+        # - name: dockercontainerlogdirectory
+        #   mountPath: /var/lib/docker/containers
+        #   readOnly: true
+        # When actual pod logs in /var/log/pods, the following lines should be used.
+        - name: dockercontainerlogdirectory
+          mountPath: /var/log/pods
+          readOnly: true
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: varlog
+        hostPath:
+          path: /var/log
+      # When actual pod logs in /var/lib/docker/containers, the following lines should be used.
+      # - name: dockercontainerlogdirectory
+      #   hostPath:
+      #     path: /var/lib/docker/containers
+      # When actual pod logs in /var/log/pods, the following lines should be used.
+      - name: dockercontainerlogdirectory
+        hostPath:
+          path: /var/log/pods">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentd
+  namespace: fluentd
+  labels:
+    k8s-app: fluentd-logging
+    version: v1
+spec:
+  selector:
+    matchLabels:
+      k8s-app: fluentd-logging
+      version: v1
+  template:
+    metadata:
+      labels:
+        k8s-app: fluentd-logging
+        version: v1
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      containers:
+      - name: fluentd
+        image: fluent/fluentd-kubernetes-daemonset:v1.14-debian-forward-amd64-1
+        resources:
+          limits:
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+        # When actual pod logs in /var/lib/docker/containers, the following lines should be used.
+        # - name: dockercontainerlogdirectory
+        #   mountPath: /var/lib/docker/containers
+        #   readOnly: true
+        # When actual pod logs in /var/log/pods, the following lines should be used.
+        - name: dockercontainerlogdirectory
+          mountPath: /var/log/pods
+          readOnly: true
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: varlog
+        hostPath:
+          path: /var/log
+      # When actual pod logs in /var/lib/docker/containers, the following lines should be used.
+      # - name: dockercontainerlogdirectory
+      #   hostPath:
+      #     path: /var/lib/docker/containers
+      # When actual pod logs in /var/log/pods, the following lines should be used.
+      - name: dockercontainerlogdirectory
+        hostPath:
+          path: /var/log/pods
+</code>
+</pre>
+	</div>
+</div>	
+
+<div class="section" id="fluentd">
+	<div class="detailsbox"><b>Fluentd setup</b> - You should grant the necessary RBAC permissions to the service account used by Fluentd. You can do this by creating a ClusterRoleBinding or a RoleBinding with the appropriate permissions.<a href='http://rontoe.com/library/yaml/fluentd-cluster-role.yml'>YAML (Cluster Role)</a> - <a href='http://rontoe.com/library/yaml/fluentd-role-binding.yml'>YAML (Role Binding)</a></div>
+	<div class="codebox" data-copy-text="apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fluentd-pods-reader
+rules:
+- apiGroups: [&quot;&quot;]
+  resources: [&quot;pods&quot;]
+  verbs: [&quot;get&quot;, &quot;list&quot;, &quot;watch&quot;]
+
+--------------------------------------
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fluentd-pods-reader-binding
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: kube-system  # Update this namespace if your Fluentd is in a different namespace
+roleRef:
+  kind: ClusterRole
+  name: fluentd-pods-reader
+  apiGroup: rbac.authorization.k8s.io">
+<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fluentd-pods-reader
+rules:
+- apiGroups: [&quot;&quot;]
+  resources: [&quot;pods&quot;]
+  verbs: [&quot;get&quot;, &quot;list&quot;, &quot;watch&quot;]
+
+--------------------------------------
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fluentd-pods-reader-binding
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: kube-system  # Update this namespace if your Fluentd is in a different namespace
+roleRef:
+  kind: ClusterRole
+  name: fluentd-pods-reader
+  apiGroup: rbac.authorization.k8s.io
+
+</code>
+</pre>
+	</div>
+</div>	
 
 </div>
