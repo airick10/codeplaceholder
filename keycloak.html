@@ -1,0 +1,320 @@
+<html>
+<head>
+<title>Eric's Knowledgebase</title>
+<link rel='icon' type='image/png' href='images/elibrary.png'>
+<link rel='stylesheet' type='text/css' href='librarystyle.css'>
+<link rel='stylesheet' href='https://pro.fontawesome.com/releases/v5.5.0/css/all.css' integrity='sha384-j8y0ITrvFafF4EkV1mPW0BKm6dp3c+J9Fky22Man50Ofxo2wNe5pT1oZejDH9/Dt' crossorigin='anonymous'>
+<link href='https://fonts.googleapis.com/css?family=Baloo+Thambi|IBM+Plex+Mono|Cabin' rel='stylesheet'>
+<script src="jquery-3.6.0.js"></script>
+<script>
+$(function(){
+  $("#header").load("header.html");
+});
+</script>
+
+<style>
+  .copy-icon {
+    cursor: pointer;
+    display: inline-block;
+    margin-left: 10px;
+  }
+  .codebox {
+    position: relative;
+  }
+  .copy-icon.copied {
+            background-color: #6a6a6a; /* Change background color when copied */
+        }
+</style>
+<script>
+    $(document).ready(function(){
+        $('.copy-icon').click(function(){
+            // Get the text specifically for copying
+            var textToCopy = $(this).closest('.codebox').data('copy-text');
+
+            // Create a temporary textarea element
+            var textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+
+            // Append the textarea to the body and select its content
+            document.body.appendChild(textarea);
+            textarea.select();
+
+            try {
+                // Copy the selected text to the clipboard
+                var successful = document.execCommand('copy');
+                if (successful) {
+                    // Add a class to the copy icon to indicate success
+                    $(this).addClass('copied');
+                    // Remove the class after a short delay
+                    setTimeout(() => {
+                        $(this).removeClass('copied');
+                    }, 100);
+                }
+            } catch (err) {
+                console.error('Unable to copy text: ', err);
+            }
+
+            // Remove the temporary textarea
+            document.body.removeChild(textarea);
+        });
+    });
+    </script>
+
+</head>
+<body>
+<div id="header"></div>
+<p>
+<ul>
+<li><a href="https://www.keycloak.org/" target="new_window">Keycloak Docs</a></li>
+</ul>
+<br>
+This pages goes over the install of Keycloak
+<div class="mainbody linux">
+<p>
+<div class="section linux" >
+  <div class="detailsbox"><b>Install (Helm)</b> Create your storage YAMLs first.  Create Storage Class.  Calling this local-storage
+  </div>
+  <div class="codebox" data-copy-text="apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-storage
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-storage
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+</code>
+</pre>
+  </div>
+</div>
+
+<div class="section linux" >
+  <div class="detailsbox"><b>Install (Helm)</b> Create the Persistent Storage
+  </div>
+  <div class="codebox" data-copy-text="apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: keycloak-pv
+  namespace: default
+spec:
+  storageClassName: local-storage
+  claimRef:
+    name: keycloak-volume
+    namespace: default
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  local:
+    path: /mnt/
+  nodeAffinity:
+   required:
+    nodeSelectorTerms:
+    - matchExpressions:
+      - key: kubernetes.io/hostname
+        operator: In
+        values:
+        - node01">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: keycloak-pv
+  namespace: default
+spec:
+  storageClassName: local-storage
+  claimRef:
+    name: keycloak-volume
+    namespace: default
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  local:
+    path: /mnt/
+  nodeAffinity:
+   required:
+    nodeSelectorTerms:
+    - matchExpressions:
+      - key: kubernetes.io/hostname
+        operator: In
+        values:
+        - node01
+</code>
+</pre>
+  </div>
+</div>
+
+
+
+<div class="section linux" >
+  <div class="detailsbox"><b>Install (Helm)</b> Create the Persistent Storage Claim
+  </div>
+  <div class="codebox" data-copy-text="apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: keycloak-volume
+  namespace: default
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: local-storage">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: keycloak-volume
+  namespace: default
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: local-storage
+</code>
+</pre>
+  </div>
+</div>
+
+<div class="section linux" >
+  <div class="detailsbox"><b>Install (Helm)</b> Apply the yamls.  After pvc looks to be bound, do a describe.  You should see 'Used by' as None.
+  </div>
+  <div class="codebox" data-copy-text="kubectl apply -f sc.yaml
+kubectl apply -f pv.yaml
+kubectl apply -f pvc.yaml">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# kubectl apply -f sc.yaml
+# kubectl apply -f pv.yaml
+# kubectl apply -f pvc.yaml
+
+--- Check on the keycloak-volume---
+# kubectl describe pvc keycloak-volume
+</code>
+</pre>
+  </div>
+</div>
+
+<div class="section linux" >
+  <div class="detailsbox"><b>Install (Helm)</b> Add a repo for KeyCloak.  Codecentric works.  Check the list to make sure it was added.
+  <br>
+  Show values will output the yaml for you to edit.
+  </div>
+  <div class="codebox" data-copy-text="helm repo add codecentric https://codecentric.github.io/helm-charts
+helm repo list
+helm show values codecentric/keycloak &gt; codecentric.yaml">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# helm repo add codecentric https://codecentric.github.io/helm-charts
+# helm repo list
+# helm show values codecentric/keycloak &gt; codecentric.yaml
+</code>
+</pre>
+  </div>
+</div>
+
+<div class="section linux" >
+  <div class="detailsbox"><b>Install (Helm)</b> Edit the codecentric.yaml. Around line 396, Add the persistence key into the postgresql section. Save. 
+  </div>
+  <div class="codebox" data-copy-text="postgresql:
+  enabled: true
+  postgresqlUsername: keycloak
+  postgresqlPassword: keycloak
+  postgresqlDatabase: keycloak
+  networkPolicy:
+    enabled: false
+  persistence:
+    existingClaim: keycloak-volume">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+postgresql:
+  enabled: true
+  postgresqlUsername: keycloak
+  postgresqlPassword: keycloak
+  postgresqlDatabase: keycloak
+  networkPolicy:
+    enabled: false
+  persistence:
+    existingClaim: keycloak-volume
+</code>
+</pre>
+  </div>
+</div>
+
+
+<div class="section linux" >
+  <div class="detailsbox"><b>Install (Helm)</b> Install using the codecentric.yaml values config.  After install, check the pods.  You may want to use -w to watch.  Could take a few minutes.  keycloak-0 may not start, you might have to adjust the service (seen below)
+  </div>
+  <div class="codebox" data-copy-text="helm install keycloak codecentric/keycloak --values codecentric.yaml">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# helm install keycloak codecentric/keycloak --values codecentric.yaml
+# kubectl get pod -w
+</code>
+</pre>
+  </div>
+</div>
+
+<div class="section linux" >
+  <div class="detailsbox"><b>Install (Helm)</b> Look at services, you will need to change ClusterIP to NodePort.  Look for keycloak-http.
+  <br>
+  You'll see 'ClusterIP' as a type in the Spec: section.  Change from ClusterIP to NodePort.  Save the file.
+  </div>
+  <div class="codebox" data-copy-text="kubectl edit svc keycloak-http">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# kubectl get svc
+
+--- (COPY BTN) ---
+# kubectl edit svc keycloak-http
+
+--- keycloak-http service ---
+type: NodePort
+</code>
+</pre>
+  </div>
+</div>
+
+
+<div class="section linux" >
+  <div class="detailsbox"><b>Install (Helm)</b> Look at the service again, you should see it as NodePort.  Also note which port forwards from 80.  Such as 80:32229.  32229 is the port it's running on.
+  <br>
+  Look at the pods.  They should both be running.
+  </div>
+  <div class="codebox" data-copy-text="kubectl get svc
+kubectl get pod">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# kubectl get svc
+# kubectl get pod
+
+--- Go to Browser.  Port XXXX (from SVC) ---
+</code>
+</pre>
+  </div>
+</div>
+
+</div>
+
+
+
