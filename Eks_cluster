@@ -2,15 +2,14 @@ import pulumi
 import pulumi_eks as eks
 import pulumi_aws as aws
 import pulumi_kubernetes as k8s
-import json
 
 def create_eks_cluster(base_eks_cluster_name, eks_vpc, current_user):
     # Get some values from the Pulumi configuration (or use defaults)
     config = pulumi.Config()
-    min_cluster_size = config.get_float("minClusterSize", 3)
-    max_cluster_size = config.get_float("maxClusterSize", 6)
-    desired_cluster_size = config.get_float("desiredClusterSize", 3)
-    eks_node_instance_type = config.get("eksNodeInstanceType", "t3.medium")
+    min_cluster_size = config.get_int("minClusterSize") or 3
+    max_cluster_size = config.get_int("maxClusterSize") or 6
+    desired_cluster_size = config.get_int("desiredClusterSize") or 3
+    eks_node_instance_type = config.get("eksNodeInstanceType") or "t3.medium"
 
     eks_vpc_id = eks_vpc.vpc_id
 
@@ -33,34 +32,11 @@ def create_eks_cluster(base_eks_cluster_name, eks_vpc, current_user):
     # Create a k8s provider
     k8s_provider = k8s.Provider("k8s-provider", kubeconfig=eks_cluster.kubeconfig)
 
-    # Check if the ServiceAccount exists and delete it if it does
-    service_account_name = "ebs-csi-controller-sa"
-    namespace = "kube-system"
-
-    def delete_service_account_if_exists():
-        try:
-            existing_sa = k8s.core.v1.ServiceAccount.get(
-                service_account_name,
-                id=f"{namespace}/{service_account_name}",
-                opts=pulumi.ResourceOptions(provider=k8s_provider)
-            )
-            existing_sa.metadata.apply(lambda metadata: k8s.core.v1.ServiceAccount(
-                service_account_name,
-                opts=pulumi.ResourceOptions(
-                    provider=k8s_provider,
-                    delete_before_replace=True,
-                    depends_on=[existing_sa]
-                )
-            ).delete())
-        except Exception as e:
-            pulumi.log.info(f"No existing ServiceAccount {service_account_name} found in {namespace} namespace.")
-
-    delete_service_account_if_exists()
-
     # Deploy the EBS CSI driver using Helm
     ebs_csi_driver = k8s.helm.v3.Release(
         "ebs-csi-driver",
         chart="aws-ebs-csi-driver",
+        version="2.4.0",  # Specify the version you want to install
         repository_opts=k8s.helm.v3.RepositoryOptsArgs(
             repo="https://kubernetes-sigs.github.io/aws-ebs-csi-driver"
         ),
@@ -75,5 +51,33 @@ def create_eks_cluster(base_eks_cluster_name, eks_vpc, current_user):
 
     # Export values to use elsewhere
     pulumi.export("ebs_csi_driver_status", ebs_csi_driver.status)
+
+    # Create a Persistent Volume and Persistent Volume Claim to test the EBS CSI driver
+    pv = k8s.core.v1.PersistentVolume(
+        "pv",
+        spec=k8s.core.v1.PersistentVolumeSpecArgs(
+            capacity={"storage": "10Gi"},
+            access_modes=["ReadWriteOnce"],
+            persistent_volume_reclaim_policy="Retain",
+            storage_class_name="gp2",
+            csi=k8s.core.v1.CSIPersistentVolumeSourceArgs(
+                driver="ebs.csi.aws.com",
+                volume_handle="my-ebs-volume"
+            )
+        ),
+        opts=pulumi.ResourceOptions(provider=k8s_provider)
+    )
+
+    pvc = k8s.core.v1.PersistentVolumeClaim(
+        "pvc",
+        spec=k8s.core.v1.PersistentVolumeClaimSpecArgs(
+            access_modes=["ReadWriteOnce"],
+            resources=k8s.core.v1.ResourceRequirementsArgs(
+                requests={"storage": "10Gi"}
+            ),
+            storage_class_name="gp2"
+        ),
+        opts=pulumi.ResourceOptions(provider=k8s_provider)
+    )
 
     return eks_cluster
