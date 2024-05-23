@@ -1,0 +1,551 @@
+<html>
+<head>
+<script src="jquery-3.6.0.js"></script>
+<script>
+$(function(){
+  $("#header").load("header.html");
+});
+</script>
+
+<style>
+  .copy-icon {
+    cursor: pointer;
+    display: inline-block;
+    margin-left: 10px;
+  }
+  .codebox {
+    position: relative;
+  }
+  .copy-icon.copied {
+            background-color: #6a6a6a; /* Change background color when copied */
+        }
+</style>
+<script>
+    $(document).ready(function(){
+        $('.copy-icon').click(function(){
+            // Get the text specifically for copying
+            var textToCopy = $(this).closest('.codebox').data('copy-text');
+
+            // Create a temporary textarea element
+            var textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+
+            // Append the textarea to the body and select its content
+            document.body.appendChild(textarea);
+            textarea.select();
+
+            try {
+                // Copy the selected text to the clipboard
+                var successful = document.execCommand('copy');
+                if (successful) {
+                    // Add a class to the copy icon to indicate success
+                    $(this).addClass('copied');
+                    // Remove the class after a short delay
+                    setTimeout(() => {
+                        $(this).removeClass('copied');
+                    }, 100);
+                }
+            } catch (err) {
+                console.error('Unable to copy text: ', err);
+            }
+
+            // Remove the temporary textarea
+            document.body.removeChild(textarea);
+        });
+    });
+    </script>
+
+</head>
+<body>
+<div id="header"></div>
+<p>
+<div style='width:100%; height:200px'>
+	<div style='width:50%;float:left'>	
+<ul>
+<li><a href="https://docs.docker.com/install/linux/docker-ce/centos" target="new_window">Docker Docs - Good setup and basics site.</a>
+<li><a href="dockerfiles.html" target="new_window">My Dockerfiles</a>
+<li><a href="https://spacelift.io/blog/docker-init" target="new_window">Docker Init</a>
+<li><a href="https://www.geeksforgeeks.org/how-to-use-a-dockerignore-file/#" target="new_window">.dockerignore file</a>
+<li><a href="https://docs.linuxserver.io/general/docker-compose/#single-service-usage" target="new_window">Docker Compose</a>
+<li><a href="kind.html" target="new_window">Kind - Run Kubernetes in Docker</a>
+</ul>
+</div>
+	<div style='width:50%;float:left'>
+		<ul>
+			<li><a href="#exec">Running Commands in containers</a></li>
+			<li><a href="#ports">Open up ports to containers</a></li>
+			<li><a href="#mount">Mounting a volume in Docker</a></li>
+			<li><a href="#sharing">SSH in/have other users work on container</a></li>
+			<li><a href="#remote_access">Remote Access</a></li>
+			<li><a href="#socket">Socket Use</a></li>
+			<li><a href="#docker-compose">Docker Compose</a></li>
+		</ul>
+	</div>
+</div>		
+
+
+<div class="mainbody linux">
+<p>
+<div class="section linux">
+	<div class="detailsbox">
+		<img src="/library/images/centos.png" class="detailsimage">Installing Docker on CentOS.  First, you can setup the repository.  Then, you can install and update docker from the repository.
+	</div>
+	<div class="codebox" data-copy-text="sudo yum install -y yum-utils device-mapper-persistent-data lvm2">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+	<code>
+sudo yum install -y yum-utils device-mapper-persistent-data lvm2
+	</code>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox">
+		<img src="/library/images/centos.png" class="detailsimage">Set up the repository
+	</div>
+	<div class="codebox" data-copy-text="sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+	<code>
+sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+	</code>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox">
+		<img src="/library/images/centos.png" class="detailsimage">Install Docker CE
+	</div>
+	<div class="codebox" data-copy-text="sudo yum install docker-ce docker-ce-cli container.io">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+	<pre>
+	<code>
+sudo yum install docker-ce docker-ce-cli container.io
+...
+If prompted to accept a GPG key, verify it matches this
+...
+060A 61C5 1B55 8A7F 742B 77AA C52F EB6B 621E 9F35
+	</code>
+	</pre>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox">
+		<img src="/library/images/centos.png" class="detailsimage">Start Docker
+	</div>
+	<div class="codebox" data-copy-text="sudo systemctl start docker">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+	<code>
+sudo systemctl start docker
+	</code>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox">
+		<img src="/library/images/centos.png" class="detailsimage">Verify Docker is installed by running 'Hello World'
+	</div>
+	<div class="codebox" data-copy-text="sudo docker run hello-world">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+	<code>
+sudo docker run hello-world
+	</code>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox">
+		<img src="/library/images/centos.png" class="detailsimage">Configure Docker to run at startup
+	</div>
+	<div class="codebox" data-copy-text="sudo systemctl enable docker">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+	<code>
+sudo systemctl enable docker
+	</code>
+	</div>
+</div>
+
+<hr>
+
+<div class="section" id="exec">
+	<div class="detailsbox">Run and immediately go to that container's shell.  -i means interactive.  -t means terminal.
+	</div>
+	<div class="codebox" data-copy-text="docker run -it &lt;image&gt;">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<code>
+# docker run -it &lt;image&gt;
+</code>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox">Run command immediately in container
+	</div>
+	<div class="codebox" data-copy-text="docker run &lt;image&gt; &lt;command&gt;">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# docker run &lt;image&gt; &lt;command&gt;
+---Example---
+# docker run ubuntu sleep 10
+# docker run ubuntu pwd
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox">Run exec with a command.  Get output immediately
+	</div>
+	<div class="codebox" data-copy-text="docker exec &lt;container id&gt; &lt;command&gt;">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# docker exec &lt;container id&gt; &lt;command&gt;
+---Example---
+# docker exec 234a22 ls -a
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section" id='ports'>
+	<div class="detailsbox">To run a web server from the outside, for example.  You can map 80 to the port on the container.  Let's say 5000.  Now it can be accessed by the host IP and port 80.  You can run multiple containers with different ports, if you want.
+	<br>
+	In the multiple container, it maps the port 8080 on the host to port 80 on the container.  Also, it maps 8443 to 443.
+	</div>
+	<div class="codebox" data-copy-text="docker run -p 80:5000 samplewebapp">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# docker run -p 80:5000 samplewebapp
+# docker run -p 8000:5000 samplewebapp
+
+--- Multiple Ports
+# docker run -p 8080:80 -p 8443:443 samplewebapp
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section" id='mount'>
+	<div class="detailsbox">I can mount a disk from the host to the container so the data persists.
+	</div>
+	<div class="codebox" data-copy-text="docker run -v /host/directory:/var/lib/mysql mysql">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<code>
+# docker run -v /host/directory:/var/lib/mysql mysql
+</code>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox">Mounting with NFS.  Assuming nfs-utils or nfs-comon is installed, create the directory on your your host computer (/mnt/nfs_share) and mount that to the NFS directory (/exported/path).  Then you can use that mount to mount the volume in docker.
+	</div>
+	<div class="codebox" data-copy-text="docker run -v /mnt/nfs_share:/var/lib/mysql mysql">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<code>
+--- NFS Mount ---
+# sudo mkdir -p /mnt/nfs_share
+# sudo mount -t nfs nfs.example.com:/path/to/nfs/share /mnt/nfs_share
+
+--- Docker Map (COPY BTN) ---
+# docker run -v /mnt/nfs_share:/var/lib/mysql mysql
+</code>
+	</div>
+</div>
+
+
+
+<div class="section">
+	<div class="detailsbox">Run an image with an assigned env variable
+	</div>
+	<div class="codebox" data-copy-text="docker run -e APP_COLOR=green webapp-image">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<code>
+# docker run -e APP_COLOR=green webapp-image
+</code>
+	</div>
+</div>
+
+<hr>
+
+<div class="section">
+	<div class="detailsbox">
+		<img src="/library/images/centos.png" class="detailsimage">Manage Docker as non-root.  Create the docker group
+	</div>
+	<div class="codebox" data-copy-text="sudo groupadd docker">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+	<code>
+sudo groupadd docker
+	</code>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox">
+		<img src="/library/images/centos.png" class="detailsimage">Add the user to the docker group.  After this, you can run docker commands without sudo.
+	</div>
+	<div class="codebox" data-copy-text="sudo usermod -aG docker $USER">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+	<code>
+sudo usermod -aG docker $USER
+	</code>
+	</div>
+</div>
+
+<div class="section" id='sharing'>
+	<div class="detailsbox"><b>Sharing access to running container</b> - You can share access via ssh by giving them access to the environment.  Start the container with SSH installed and a port exposed.  Allow others to ssh in.
+	</div>
+	<div class="codebox" data-copy-text="docker run -d -p 2222:22 my-ssh-enabled-image">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# docker run -d -p 2222:22 my-ssh-enabled-image
+
+--- Example image ---
+# docker run -d -p 2222:22 rastasheep/ubuntu-sshd
+
+--- Have user SSH in ---
+# ssh root@localhost -p 2222
+
+</code>
+</pre>
+	</div>
+</div>
+	
+<div class="section" id='remote_access'>
+	<div class="detailsbox"><b>Manage containers remotely</b> - Docker contexts allows you to switch between multiple Docker environments, including remote docker systems.
+	</div>
+	<div class="codebox" data-copy-text="docker context create myremote --docker &quot;host=tcp://HOST_IP_ADDR:2375&quot;
+docker context use myremote">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# docker context create myremote --docker &quot;host=tcp://HOST_IP_ADDR:2375&quot;
+# docker context use myremote
+
+--- Using Remote ---
+# docker ps
+# docker run -d -p 8080:80 nginx
+
+</code>
+</pre>
+	</div>
+</div>
+
+
+<div class="section">
+	<div class="detailsbox"><b>Manage containers remotely (Secure)</b> - Port 2375 is used for Docker's remote API.  Typically used for unencrypted.  For secure API, use port 2376.  Doing this, you'll need TLS certificates for the docker daemon and the client.  OpenSSL Should be able to handle this.
+	</div>
+	<div class="codebox" data-copy-text="openssl genpkey -algorithm RSA -out ca-key.pem
+openssl req -new -x509 -key ca-key.pem -out ca.pem -days 365">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+--- Create a directory to store the certificates ---
+mkdir -p ~/docker-certs
+cd ~/docker-certs
+
+--- Generate CA private and public keys (COPY BTN) ---
+openssl genpkey -algorithm RSA -out ca-key.pem
+openssl req -new -x509 -key ca-key.pem -out ca.pem -days 365
+
+--- Generate server private key and CSR (Certificate Signing Request) ---
+openssl genpkey -algorithm RSA -out server-key.pem
+openssl req -subj &quot;/CN=&lt;hostname&gt;&quot; -new -key server-key.pem -out server.csr
+
+--- Sign the server certificate with the CA ---
+openssl x509 -req -days 365 -in server.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out server-cert.pem
+
+--- Generate client private key and CSR ---
+openssl genpkey -algorithm RSA -out key.pem
+openssl req -subj &quot;/CN=client&quot; -new -key key.pem -out client.csr
+
+--- Sign the client certificate with the CA ---
+openssl x509 -req -days 365 -in client.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out cert.pem
+</code>
+</pre>
+	</div>
+</div>
+
+
+<div class="section">
+	<div class="detailsbox"><b>Manage containers remotely (Secure)</b> - Now, edit out the Docker daemon config file. '/etc/docker/daemon.json'.  Use the generated certs and expose 2376.
+	<br>
+	Once done, restart the docker deamon.
+	</div>
+	<div class="codebox" data-copy-text="{
+  &quot;tls&quot;: true,
+  &quot;tlsverify&quot;: true,
+  &quot;tlscacert&quot;: &quot;~/docker-certs/ca.pem&quot;,
+  &quot;tlscert&quot;: &quot;~/docker-certs/server-cert.pem&quot;,
+  &quot;tlskey&quot;: &quot;~/docker-certs/server-key.pem&quot;,
+  &quot;hosts&quot;: [&quot;tcp://0.0.0.0:2376&quot;, &quot;unix:///var/run/docker.sock&quot;]
+}">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+--- /etc/docker/daemon.json ---
+{
+  &quot;tls&quot;: true,
+  &quot;tlsverify&quot;: true,
+  &quot;tlscacert&quot;: &quot;~/docker-certs/ca.pem&quot;,
+  &quot;tlscert&quot;: &quot;~/docker-certs/server-cert.pem&quot;,
+  &quot;tlskey&quot;: &quot;~/docker-certs/server-key.pem&quot;,
+  &quot;hosts&quot;: [&quot;tcp://0.0.0.0:2376&quot;, &quot;unix:///var/run/docker.sock&quot;]
+}
+
+--- Restart Docker ---
+# sudo systemctl restart docker
+
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox"><b>Manage containers remotely (Secure)</b> - Finally, configure the Docker context to use the certs.  Then, you can create the context with TLS.
+	</div>
+	<div class="codebox" data-copy-text="docker context create mysecurecontext --docker &quot;host=tcp://&lt;host-ip&gt;:2376&quot; --docker &quot;ca=~/docker-certs/ca.pem&quot; --docker &quot;cert=~/docker-certs/cert.pem&quot; --docker &quot;key=~/docker-certs/key.pem&quot;
+
+docker context use mysecurecontext">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# docker context create mysecurecontext --docker &quot;host=tcp://&lt;host-ip&gt;:2376&quot; --docker &quot;ca=~/docker-certs/ca.pem&quot; --docker &quot;cert=~/docker-certs/cert.pem&quot; --docker &quot;key=~/docker-certs/key.pem&quot;
+
+# docker context use mysecurecontext
+
+-------
+
+# docker context use mysecurecontext
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section" id='socket'>
+	<div class="detailsbox"><b>Socket Use</b> - The socket file allows docker clients to communicate with the docker daemon.  It's located at '/var/run/docker.sock'.  Accessing this, you can perform various docker operations.  Here, you can map the socket file to the container and use docker managing commands inside the container.
+	<br>
+	This is useful for tools that need to management docker resources, such as CI/CD pipelines.
+	</div>
+	<div class="codebox" data-copy-text="docker run -v /var/run/docker.sock:/var/run/docker.sock -it docker">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# docker run -v /var/run/docker.sock:/var/run/docker.sock -it docker
+</code>
+</pre>
+	</div>
+</div>
+
+
+<hr>
+
+<div class="section">
+	<div class="detailsbox">
+		<img src="/library/images/redhat.png" class="detailsimage"><b>Running MYSQL and phpmyadmin</b>:  You may need to login to docker hub first.
+	</div>
+	<div class="codebox" data-copy-text="docker login">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# docker login
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox">
+		<img src="/library/images/redhat.png" class="detailsimage"><b>Running MYSQL and phpmyadmin</b>:  Go to docker hub and pull down the official <a href="https://hub.docker.com/_/mysql" target="new_window">mysql</a> and <a href="https://hub.docker.com/_/phpmyadmin" target="new_window">phpmyadmin</a> images.  The commands are below.  
+	</div>
+	<div class="codebox" data-copy-text="docker pull mysql
+docker pull phpmyadmin">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# docker pull mysql
+# docker pull phpmyadmin
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox">
+		<img src="/library/images/redhat.png" class="detailsimage"><b>Running MYSQL and phpmyadmin</b>:  Instructions are on the docker hub mysql page, but the docker run command to start up a mysql container is this.  The 8.0 at the end is a tag, tags are described on the docker hub page.  Here, it just mentions I want to use mysql version 8.0.
+	</div>
+	<div class="codebox" data-copy-text="docker run --name ericmysql -e MYSQL_ROOT_PASSWORD=Welcome123 -d mysql:8.0">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# docker run --name ericmysql -e MYSQL_ROOT_PASSWORD=Welcome123 -d mysql:8.0
+</code>
+</pre>
+	</div>
+</div>
+	
+<div class="section">
+	<div class="detailsbox">
+	<img src="/library/images/redhat.png" class="detailsimage"><b>Running MYSQL and phpmyadmin</b>:  For phpmyadmin, you want to do a docker run again, but link the DB that was created and running.  We are using port 8080.  The linked DB is from the command above.  Using 'ericmysql'.  Now you can go to the IP of this system... 192.168.1.10:8080 and you'll see phpmyadmin with the root and root password to get in.
+	</div>
+	<div class="codebox" data-copy-text="docker run --name ericphpmyadmin -d --link ericmysql:db -p 8080:80 phpmyadmin">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# docker run --name ericphpmyadmin -d --link ericmysql:db -p 8080:80 phpmyadmin
+</code>
+</pre>
+	</div>
+</div>	
+
+<hr>
+
+<div class="section" id="docker-compose">
+	<div class="detailsbox"><b>Docker Compose</b>:  You are to run multiple images in a single YAML.  Docker Compose allows you to do this.  First, it needs to be installed as a plug-in seperately
+	<br>
+	Technically, Ubuntu/Debian should already come with the plugin, but just in case here is the command to add it.
+	</div>
+	<div class="codebox" data-copy-text="sudo yum install docker-compose-plugin">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+--- CentOS/RH ---
+# sudo yum install docker-compose-plugin
+
+--- Ubuntu/Debian ---
+# sudo apt-get install docker-compose-plugin
+</code>
+</pre>
+	</div>
+</div>	
+
+
+<div class="section">
+	<div class="detailsbox"><b>Docker Compose</b>:  Setting up ports.  Here's a quick YAML look at opening up ports to the container in Docker Compose.  
+	</div>
+	<div class="codebox" data-copy-text="version: '3'
+services:
+  web:
+    image: my-web-app
+    ports:
+      - &quot;8080:80&quot;
+      - &quot;8443:443&quot;">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+--- docker-compose.yml file ---
+version: '3'
+services:
+  web:
+    image: my-web-app
+    ports:
+      - &quot;8080:80&quot;
+      - &quot;8443:443&quot;
+</code>
+</pre>
+	</div>
+</div>	
+
+</div>
