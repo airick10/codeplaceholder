@@ -1,0 +1,728 @@
+<html>
+<head>
+<script src="jquery-3.6.0.js"></script>
+<script>
+$(function(){
+  $("#header").load("header.html");
+});
+</script>
+
+<style>
+  .copy-icon {
+    cursor: pointer;
+    display: inline-block;
+    margin-left: 10px;
+  }
+  .codebox {
+    position: relative;
+  }
+  .copy-icon.copied {
+            background-color: #6a6a6a; /* Change background color when copied */
+        }
+</style>
+<script>
+    $(document).ready(function(){
+        $('.copy-icon').click(function(){
+            // Get the text specifically for copying
+            var textToCopy = $(this).closest('.codebox').data('copy-text');
+
+            // Create a temporary textarea element
+            var textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+
+            // Append the textarea to the body and select its content
+            document.body.appendChild(textarea);
+            textarea.select();
+
+            try {
+                // Copy the selected text to the clipboard
+                var successful = document.execCommand('copy');
+                if (successful) {
+                    // Add a class to the copy icon to indicate success
+                    $(this).addClass('copied');
+                    // Remove the class after a short delay
+                    setTimeout(() => {
+                        $(this).removeClass('copied');
+                    }, 100);
+                }
+            } catch (err) {
+                console.error('Unable to copy text: ', err);
+            }
+
+            // Remove the temporary textarea
+            document.body.removeChild(textarea);
+        });
+    });
+    </script>
+
+</head>
+<body>
+<div id="header"></div>
+<ul>
+<li><a href="https://developer.hashicorp.com/vault/tutorials/kubernetes/kubernetes-raft-deployment-guide#install-vault" target="new_window">Vault Install Link</a></li>
+<li><a href="https://devopscube.com/vault-in-kubernetes" target="new_window">Good install link using YAMLs</a></li>
+<li><a href="#install">Installation (Helm)</a></li>
+<li><a href="#yaml">Installation (YAMLs)</a></li>
+</ul>
+<br>
+Vault allows for secrets management and also provides dynamically allowed users and passwords for apps across Kubernetes.  Useful.
+<div class="mainbody kubernetes">
+	<p>
+<div class="section" id="install">
+  <div class="detailsbox"><b>Installation</b> - Create a namespace and add the repo.  This installation uses <a href='helm.php' target='new_window'>Helm</a>.
+</div>
+  <div class="codebox" data-copy-text="kubectl create namespace vault
+helm repo add hashicorp https://helm.releases.hashicorp.com">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+kubectl create namespace vault
+helm repo add hashicorp https://helm.releases.hashicorp.com
+</code>
+</pre>
+  </div>
+</div>
+
+<div class="section" id="pv">
+  <div class="detailsbox"><b>Installation</b> - Add Persistant Volume (Optional).  If your cluster already has a PV ready to go, you can ignore this.  If not, you'll need to add a PV to your cluster.  This YAML will add PV for just 1G and in the namespace of 'vault'.  Apply it to the cluster.
+</div>
+  <div class="codebox" data-copy-text="apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-vol1
+  namespace: vault
+
+spec:
+  accessModes:
+      - ReadWriteOnce
+  capacity:
+    storage: 1Gi
+  hostPath:
+    path: /tmp/data">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+--- vi pv.yaml ---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-vol1
+  namespace: vault
+
+spec:
+  accessModes:
+      - ReadWriteOnce
+  capacity:
+    storage: 1Gi
+  hostPath:
+    path: /tmp/data
+--------------------
+
+kubectl apply -f pv.yaml
+</code>
+</pre>
+  </div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>Installation</b> - Set Custom Values (Optional).  You can work with the default, but it's not a bad idea to check storage options.  This command will output the custom-values.yaml so you can look and change.  I do like to change the storage from 10G to 1G for testing.  But completely up to you and the environment.
+  <p>
+  When vault gets created, it should create a pvc automatically and bound it to the PV, as long as the PV is in the 'vault' namespace.
+</div>
+  <div class="codebox" data-copy-text="helm show values hashicorp/vault > custom-values.yaml">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+helm show values hashicorp/vault > custom-values.yaml
+
+--- In custom-values.yaml, look for this.  Around line 750 ---
+server:
+  dataStorage:
+    enabled: true
+    size: 1Gi
+    storageClass: null
+    accessMode: ReadWriteOnce
+</code>
+</pre>
+  </div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>Installation</b> - Create PVC (Optional).  You can create a PVC right away for the PV.  Vault should do this automatically, but this is up to you.  Vault likes to call the pvc 'data-vault-0'.  You can see under volumeName, that it ties to pv-vol1.  Apply the pvc.
+</div>
+  <div class="codebox" data-copy-text="kubectl apply -f pvc.yaml">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+--- pvc.yaml ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data-vault-0
+  namespace: vault
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  volumeName: pv-vol1
+------------------
+
+kubectl apply -f pvc.yaml
+</code>
+</pre>
+  </div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>Installation</b> - Install Vault.  The first command is the generic install.  The second command is installing with some updates to custom-values as done above.  That part is optional.
+</div>
+  <div class="codebox" data-copy-text="helm install vault hashicorp/vault --namespace vault">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+helm install [RELEASE_NAME] hashicorp/vault --namespace vault
+--- Example (COPY BTN) ---
+helm install vault hashicorp/vault --namespace vault
+
+
+helm install [RELEASE_NAME] hashicorp/vault -f custom-values.yaml --namespace vault
+--- Example ---
+helm install vault hashicorp/vault -f custom-values.yaml --namespace vault
+</code>
+</pre>
+  </div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>Installation</b> - Check and see if things are set up.  After a minute, check the pods.  You may see vault-0 as 'Running', but at 0/1.  This is okay as the pod needs to be initialized for vault.  But if you see 'Pending', there's a problem.
+  <p>
+  Check out the pvc to make sure it is bound as well.
+</div>
+  <div class="codebox" data-copy-text="kubectl get pods -n vault
+kubectl get pvc -n vault">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+kubectl get pods -n vault
+kubectl get pvc -n vault
+</code>
+</pre>
+  </div>
+</div>
+
+<hr>
+
+<div class="section" id='yaml'>
+  <div class="detailsbox"><b>Installation (YAMLs)</b> - First, make sure you have a <a href='#pv'>persistent volume</a>.  Now, we need to get Role Binding and a Service Account set up.  Vault server requires certain extra Kubernetes permissions to do its operations. Therefore, a ClusterRole is required (with the appropriate permissions) to be assigned to a ServiceAccount via a ClusterRoleBinding. 
+  <p>
+  Kubernetes by default has a ClusterRole created with the required permissions i.e. ‘system:auth-delegator‘ so it’s not required to be created again for this case. Service account and Role Binding are required to be created.  This can be all in one yaml.
+</div>
+  <div class="codebox" data-copy-text="---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault
+  namespace: default
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vault-server-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+- kind: ServiceAccount
+  name: vault
+  namespace: default">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: vault
+  namespace: default
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: vault-server-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+- kind: ServiceAccount
+  name: vault
+  namespace: default
+
+-----------------
+# kubectl apply -f rbac.yaml
+</code>
+</pre>
+  </div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>Installation (YAMLs)</b> - Create a config map.  A ConfigMaps in Kubernetes lets us mount files on containers without the need to make changes to the Dockerfile or rebuilding the container image.  Vault requires a configuration file with appropriate parameters to start its servers.  It’s important to understand the idea behind the parameters inside the config map.
+  <p>
+  <b>disable_mlock:</b> Executing mlock syscall prevents memory from being swapped to 
+  <br>
+  <b>disk:</b> This option disables the server from executing the mlock syscall.
+  <br>
+  <b>ui:</b> Enables the built-in web UI.
+  <br>
+  <b>listener:</b> Configures how Vault is listening for API requests.
+  <br>
+  <b>storage:</b> Configures the storage backend where Vault data is stored. 
+  <br>
+</div>
+  <div class="codebox" data-copy-text="apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-config
+  namespace: default
+data:
+  extraconfig-from-values.hcl: |-
+    disable_mlock = true
+    ui = true
+    
+    listener &quot;tcp&quot; {
+      tls_disable = 1
+      address = &quot;[::]:8200&quot;
+      cluster_address = &quot;[::]:8201&quot;
+    }
+    storage &quot;file&quot; {
+      path = &quot;/vault/data&quot;
+    }">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-config
+  namespace: default
+data:
+  extraconfig-from-values.hcl: |-
+    disable_mlock = true
+    ui = true
+    
+    listener &quot;tcp&quot; {
+      tls_disable = 1
+      address = &quot;[::]:8200&quot;
+      cluster_address = &quot;[::]:8201&quot;
+    }
+    storage &quot;file&quot; {
+      path = &quot;/vault/data&quot;
+    }
+
+-----------------
+# kubectl apply -f configmap.yaml
+</code>
+</pre>
+  </div>
+</div>
+
+
+<div class="section">
+  <div class="detailsbox"><b>Installation (YAMLs)</b> - Deploy the Vault Services.  For the vault server, we will create a headless service for internal usage. It will be very useful when we scale the vault to multiple replicas. A non-headless service will be created for UI as we want to load balance requests to the replicas when accessing the UI.
+  <p>
+  Vault exposes its UI at port 8200. We will use a non-headless service of type NodePort as we want to access this endpoint from outside Kubernetes Cluster.
+</div>
+  <div class="codebox" data-copy-text="---
+# Service for Vault Server
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault
+  namespace: default
+  labels:
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: vault
+  annotations:
+spec:
+  type: NodePort  
+  publishNotReadyAddresses: true
+  ports:
+    - name: http
+      port: 8200
+      targetPort: 8200
+      nodePort: 32000
+    - name: https-internal
+      port: 8201
+      targetPort: 8201
+  selector:
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: vault
+    component: server
+
+---
+# Headless Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault-internal
+  namespace: default
+  labels:
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: vault
+  annotations:
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: &quot;http&quot;
+      port: 8200
+      targetPort: 8200
+    - name: https-internal
+      port: 8201
+      targetPort: 8201
+  selector:
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: vault
+    component: server">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+---
+# Service for Vault Server
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault
+  namespace: default
+  labels:
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: vault
+  annotations:
+spec:
+  type: NodePort  
+  publishNotReadyAddresses: true
+  ports:
+    - name: http
+      port: 8200
+      targetPort: 8200
+      nodePort: 32000
+    - name: https-internal
+      port: 8201
+      targetPort: 8201
+  selector:
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: vault
+    component: server
+
+---
+# Headless Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: vault-internal
+  namespace: default
+  labels:
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: vault
+  annotations:
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: &quot;http&quot;
+      port: 8200
+      targetPort: 8200
+    - name: https-internal
+      port: 8201
+      targetPort: 8201
+  selector:
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: vault
+    component: server
+
+---------------
+# kubectl apply -f services.yaml
+</code>
+</pre>
+  </div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>Installation (YAMLs)</b> - Create the stateful set.  Vault is a stateful application i.e. it stores data (like configurations, secrets, metadata of vault operations) inside a volume. If the data is stored in memory, then the data will get erased once the pod restarts.
+</div>
+  <div class="codebox" data-copy-text="apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vault
+  namespace: default
+  labels:
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: vault
+spec:
+  serviceName: vault-internal
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vault
+      app.kubernetes.io/instance: vault
+      component: server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vault
+        app.kubernetes.io/instance: vault
+        component: server
+    spec:
+      serviceAccountName: vault
+      securityContext:
+        runAsNonRoot: true
+        runAsGroup: 1000
+        runAsUser: 100
+        fsGroup: 1000
+      volumes:
+        - name: config
+          configMap:
+            name: vault-config
+        - name: home
+          emptyDir: {}
+      containers:
+        - name: vault          
+          image: hashicorp/vault:1.8.0
+          imagePullPolicy: IfNotPresent
+          command:
+          - &quot;/bin/sh&quot;
+          - &quot;-ec&quot;
+          args: 
+          - |
+            cp /vault/config/extraconfig-from-values.hcl /tmp/storageconfig.hcl;
+            [ -n &quot;${HOST_IP}&quot; ] && sed -Ei &quot;s|HOST_IP|${HOST_IP?}|g&quot; /tmp/storageconfig.hcl;
+            [ -n &quot;${POD_IP}&quot; ] && sed -Ei &quot;s|POD_IP|${POD_IP?}|g&quot; /tmp/storageconfig.hcl;
+            [ -n &quot;${HOSTNAME}&quot; ] && sed -Ei &quot;s|HOSTNAME|${HOSTNAME?}|g&quot; /tmp/storageconfig.hcl;
+            [ -n &quot;${API_ADDR}&quot; ] && sed -Ei &quot;s|API_ADDR|${API_ADDR?}|g&quot; /tmp/storageconfig.hcl;
+            [ -n &quot;${TRANSIT_ADDR}&quot; ] && sed -Ei &quot;s|TRANSIT_ADDR|${TRANSIT_ADDR?}|g&quot; /tmp/storageconfig.hcl;
+            [ -n &quot;${RAFT_ADDR}&quot; ] && sed -Ei &quot;s|RAFT_ADDR|${RAFT_ADDR?}|g&quot; /tmp/storageconfig.hcl;
+            /usr/local/bin/docker-entrypoint.sh vault server -config=/tmp/storageconfig.hcl     
+          securityContext:
+            allowPrivilegeEscalation: false
+          env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: VAULT_ADDR
+              value: &quot;http://127.0.0.1:8200&quot;
+            - name: VAULT_API_ADDR
+              value: &quot;http://$(POD_IP):8200&quot;
+            - name: SKIP_CHOWN
+              value: &quot;true&quot;
+            - name: SKIP_SETCAP
+              value: &quot;true&quot;
+            - name: VAULT_CLUSTER_ADDR
+              value: &quot;https://$(HOSTNAME).vault-internal:8201&quot;
+            - name: HOME
+              value: &quot;/home/vault&quot;
+          volumeMounts:
+            - name: data
+              mountPath: /vault/data  
+            - name: config
+              mountPath: /vault/config
+            - name: home
+              mountPath: /home/vault
+          ports:
+            - containerPort: 8200
+              name: http
+            - containerPort: 8201
+              name: https-internal
+            - containerPort: 8202
+              name: http-rep
+          readinessProbe:
+            exec:
+              command: [&quot;/bin/sh&quot;, &quot;-ec&quot;, &quot;vault status -tls-skip-verify&quot;]
+            failureThreshold: 2
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 3
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+             storage: 1Gi">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vault
+  namespace: default
+  labels:
+    app.kubernetes.io/name: vault
+    app.kubernetes.io/instance: vault
+spec:
+  serviceName: vault-internal
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: vault
+      app.kubernetes.io/instance: vault
+      component: server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: vault
+        app.kubernetes.io/instance: vault
+        component: server
+    spec:
+      serviceAccountName: vault
+      securityContext:
+        runAsNonRoot: true
+        runAsGroup: 1000
+        runAsUser: 100
+        fsGroup: 1000
+      volumes:
+        - name: config
+          configMap:
+            name: vault-config
+        - name: home
+          emptyDir: {}
+      containers:
+        - name: vault          
+          image: hashicorp/vault:1.8.0
+          imagePullPolicy: IfNotPresent
+          command:
+          - &quot;/bin/sh&quot;
+          - &quot;-ec&quot;
+          args: 
+          - |
+            cp /vault/config/extraconfig-from-values.hcl /tmp/storageconfig.hcl;
+            [ -n &quot;${HOST_IP}&quot; ] && sed -Ei &quot;s|HOST_IP|${HOST_IP?}|g&quot; /tmp/storageconfig.hcl;
+            [ -n &quot;${POD_IP}&quot; ] && sed -Ei &quot;s|POD_IP|${POD_IP?}|g&quot; /tmp/storageconfig.hcl;
+            [ -n &quot;${HOSTNAME}&quot; ] && sed -Ei &quot;s|HOSTNAME|${HOSTNAME?}|g&quot; /tmp/storageconfig.hcl;
+            [ -n &quot;${API_ADDR}&quot; ] && sed -Ei &quot;s|API_ADDR|${API_ADDR?}|g&quot; /tmp/storageconfig.hcl;
+            [ -n &quot;${TRANSIT_ADDR}&quot; ] && sed -Ei &quot;s|TRANSIT_ADDR|${TRANSIT_ADDR?}|g&quot; /tmp/storageconfig.hcl;
+            [ -n &quot;${RAFT_ADDR}&quot; ] && sed -Ei &quot;s|RAFT_ADDR|${RAFT_ADDR?}|g&quot; /tmp/storageconfig.hcl;
+            /usr/local/bin/docker-entrypoint.sh vault server -config=/tmp/storageconfig.hcl     
+          securityContext:
+            allowPrivilegeEscalation: false
+          env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: VAULT_ADDR
+              value: &quot;http://127.0.0.1:8200&quot;
+            - name: VAULT_API_ADDR
+              value: &quot;http://$(POD_IP):8200&quot;
+            - name: SKIP_CHOWN
+              value: &quot;true&quot;
+            - name: SKIP_SETCAP
+              value: &quot;true&quot;
+            - name: VAULT_CLUSTER_ADDR
+              value: &quot;https://$(HOSTNAME).vault-internal:8201&quot;
+            - name: HOME
+              value: &quot;/home/vault&quot;
+          volumeMounts:
+            - name: data
+              mountPath: /vault/data  
+            - name: config
+              mountPath: /vault/config
+            - name: home
+              mountPath: /home/vault
+          ports:
+            - containerPort: 8200
+              name: http
+            - containerPort: 8201
+              name: https-internal
+            - containerPort: 8202
+              name: http-rep
+          readinessProbe:
+            exec:
+              command: [&quot;/bin/sh&quot;, &quot;-ec&quot;, &quot;vault status -tls-skip-verify&quot;]
+            failureThreshold: 2
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            successThreshold: 1
+            timeoutSeconds: 3
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+             storage: 1Gi
+
+------------------
+# kubectl apply -f statefulset.yaml
+</code>
+</pre>
+  </div>
+</div>
+
+
+<div class="section">
+  <div class="detailsbox"><b>Installation (YAMLs)</b> - Unseal the vault.  Vault generates an in-memory master key and applies Shamir’s secret sharing algorithm to disassemble that master key into multiple keys. These keys are called “unseal keys”.
+<br>
+So to initialize the vault, first, we need to unseal the vault using the unseal keys.
+<br>
+<b>Note:</b> Install jq, if not already installed.
+</div>
+  <div class="codebox" data-copy-text="kubectl exec vault-0 -- vault operator init -key-shares=1 -key-threshold=1 -format=json > keys.json">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# kubectl exec vault-0 -- vault operator init -key-shares=1 -key-threshold=1 -format=json > keys.json
+
+--- Export the unseal key ---
+
+# VAULT_UNSEAL_KEY=$(cat keys.json | jq -r &quot;.unseal_keys_b64[]&quot;)
+# echo $VAULT_UNSEAL_KEY
+
+--- Export the root key ---
+
+# VAULT_ROOT_KEY=$(cat keys.json | jq -r &quot;.root_token&quot;)
+# echo $VAULT_ROOT_KEY
+
+--- Unseal the vault ---
+
+# kubectl exec vault-0 -- vault operator unseal $VAULT_UNSEAL_KEY
+</code>
+</pre>
+  </div>
+</div>
+
+
+<div class="section">
+  <div class="detailsbox"><b>Installation (YAMLs)</b> - Grab the root key and login.  The following command will remotely execute the vault log command as we have the VAULT_ROOT_KEY set locally in the environment variable.
+  <p>
+  <b>Note:</b> In production setup, vault UI and login will be secured using LDAP, okta or other secure mechanisms that follows standard security guidelines.
+</div>
+  <div class="codebox" data-copy-text="kubectl exec vault-0 -- vault login $VAULT_ROOT_KEY">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# kubectl exec vault-0 -- vault login $VAULT_ROOT_KEY
+
+--- Copy/save the token.  Login to the browser UI ---
+
+https://&lt;IP_ADDRESS&gt;:32000
+</code>
+</pre>
+  </div>
+</div>
+
+</div>
+</body>
+</head>
+</html>
