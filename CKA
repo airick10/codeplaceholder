@@ -26,6 +26,8 @@ Deployments
 	Replicas: 3;
 	Image: httpd:2.4-alpine
 	SOLUTION: Two options.  1) Create the YAML.  2) Get a current deployment (if around) and use that yaml, copy, edit, apply.  ‘kubectl get deploy deployment-1 -o yaml > test.yaml
+	DOC: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
+	DOC Path: Concepts -> Workloads -> Workload Management -> Deployments
 	YAML to build:
 		---
 			apiVersion: apps/v1
@@ -59,6 +61,8 @@ Services
 	selector:
   		name: simple-webapp
 	SOLUTION: Two options.  1) Create the YAML.  2) Get a current deployment (if around) and use that yaml, copy, edit, apply.  ‘kubectl get svc kubernetes -o yaml > test.yaml
+	DOC: https://kubernetes.io/docs/concepts/services-networking/service/
+	DOC PATH: Concepts -> Services, Load Balancing, and Networking -> Service
 	YAML to build:
 			---
 			apiVersion: v1
@@ -101,7 +105,9 @@ Manual Scheduling
 	Inspect the pod. Why is it in a pending state?
 	SOLUTION: Check if the Pod is on a node.  It might not be.  ‘kubectl get pods -A -o wide’
 	You can delete the pod and set the node manually by adjusting it’s yaml.  Add the nodeName field.
-	YAML
+	DOC: https://kubernetes.io/docs/concepts/workloads/pods/
+	DOC PATH: Concepts -> Workloads -> Pods
+	YAML:
 			apiVersion: v1
 			kind: Pod
 			metadata:
@@ -122,6 +128,8 @@ Labels and Selectors
 	
 	A ReplicaSet definition file is given replicaset-definition-1.yaml. Attempt to create the replicaset; you will encounter an issue with the file. Try to fix it.
 	SOLUTION: The label under template has tier: nginx.  It should be tier:frontend
+	DOC: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
+	DOC PATH: Concetps -> Workloads -> Workload Management -> ReplicaSet
 	YAML
 		---
 		apiVersion: apps/v1
@@ -150,6 +158,8 @@ Taints and Tolerations
 	
 	Create another pod named bee with the nginx image, which has a toleration set to the taint mortein.
 	SOLUTION: Create a Yaml
+	DOC: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+	DOC PATH: Concepts -> Scheduling, Preemption and Eviction -> Taints and Tolerations
 	YAML
 			---
 			apiVersion: v1
@@ -185,6 +195,8 @@ Node Affinity
 	Key: color
 	value: blue
 	SOLUTION: Edit the deployment.  Add the affinity section to the containers:
+	DOC: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
+	DOC PATH: Concepts -> Scheduling, Preemption and Eviction -> Assigning Pods to Nodes
 	YAML
 	spec:
 		replicas: 3
@@ -210,6 +222,8 @@ Node Affinity
 	Key: node-role.kubernetes.io/control-plane
 	Use the right operator
 	SOLUTION: Create a YAML
+	DOC: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
+	DOC PATH: Concepts -> Scheduling, Preemption and Eviction -> Assigning Pods to Nodes
 	YAML:
 			---
 			apiVersion: apps/v1
@@ -286,6 +300,8 @@ Multiple Schedulers
 	A POD definition file is given. Use it to create a POD with the new custom scheduler.
 	File is located at /root/nginx-pod.yaml
 	SOLUTION: Edit the nginx-pod.yaml file.  Add a schedulerName.
+	DOC: https://kubernetes.io/docs/reference/scheduling/config/#multiple-profiles
+	DOC PATH: Reference -> Scheduling -> Scheduler Configuration
 	YAML
 		apiVersion: v1 
 		kind: Pod 
@@ -315,6 +331,8 @@ Rolling Updates and Rollbacks
 Commands and Arguments
 	Create a pod with the ubuntu image to run a container to sleep for 5000 seconds. Modify the file ubuntu-sleeper-2.yaml.
 	SOLUTION: Edit the YAML provided
+	DOC: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#define-a-command-and-arguments-when-you-create-a-pod
+	DOC PATH: Tasks -> Inject Data into Applications -> Define a command and arguments for a container
 	YAML:
 		---
 		apiVersion: v1 
@@ -334,6 +352,8 @@ Commands and Arguments
 	Image: kodekloud/webapp-color
 	Command line arguments: --color=green
 	SOLUTION:  Create a YAML
+	DOC: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#define-a-command-and-arguments-when-you-create-a-pod
+	DOC PATH: Tasks -> Inject Data into Applications -> Define a command and arguments for a container
 	YAML:
 		---
 		apiVersion: v1 
@@ -352,6 +372,8 @@ Commands and Arguments
 Env Variables
 	Update the environment variable on the POD to use only the APP_COLOR key from the newly created ConfigMap. 
 	SOLUTION: kubectl get pods webapp-color -o yaml > test.yaml.  Then Delete the pod.  Edit the yaml
+	DOC: https://kubernetes.io/docs/concepts/configuration/configmap/#using-configmaps-as-environment-variables
+	DOC PATH: Concepts -> Configuration -> ConfigMaps
 	YAML:  Change value: xxx to this configmap
 	spec
 	  containers:
@@ -374,6 +396,8 @@ Secrets
 	
 	Configure webapp-pod to load environment variables from the newly created secret.
 	SOLUTION: Export the pod - kubectl get pods webapp -o yaml > em.yaml.  Add the secret to the YAML
+	DOC: https://kubernetes.io/docs/tasks/inject-data-application/distribute-credentials-secure/#configure-all-key-value-pairs-in-a-secret-as-container-environment-variables
+	DOC PATH: Tasks -> Inject Data Into Applications -> Distrubute Credentials Securely Using Secrets
 	YAML:
 			---
 			apiVersion: v1 
@@ -401,6 +425,8 @@ Multi Container Pods
 	Container 2 Name: gold
 	Container 2 Image: redis
 	SOLUTION:  Create a YAML
+	DOC: https://kubernetes.io/docs/tasks/access-application-cluster/communicate-containers-same-pod-shared-volume/#creating-a-pod-that-runs-two-containers
+	DOC PATH: Tasks -> Access Applications in a Cluster -> Communicate Between Containers in the Same Pod Using a Shared Volume
 	YAML:
 		apiVersion: v1
 		kind: Pod
@@ -430,6 +456,8 @@ Multi Container Pods
 	Existing Container Name: app
 	Existing Container Image: kodekloud/event-simulator
     SOLUTION: Create a YAML.  Delete and re-create the pod.
+	DOC: https://kubernetes.io/docs/concepts/workloads/pods/sidecar-containers/
+	DOC PATH: Concepts -> Workloads -> Pods -> Sidecar Containers
     YAML:  
 		---
 		apiVersion: v1
@@ -468,6 +496,8 @@ Init Containers
 	
 	Update the pod red to use an initContainer that uses the busybox image and sleeps for 20 seconds
 	SOLUTION:  Create a YAML.  Delete and re-create the pod.
+	DOC: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/#init-containers-in-use
+	DOC PATH: Concepts -> Workloads -> Pods -> Init Containers
 	YAML:
 		---
 		apiVersion: v1
@@ -514,6 +544,8 @@ Cluster Upgrade Process
 	# systemctl daemon-reload
 	# systemctl restart kubelet
 	# kubectl uncordon controlplane
+	DOC: https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-upgrade/#upgrading-control-plane-nodes
+	DOC PATH: Tasks -> Administer a Cluster -> Administration with kubeadm -> Upgrading kubeadm clusters
 	
 	
 	Upgrade the worker node to the exact version v1.29.0
@@ -526,6 +558,8 @@ Cluster Upgrade Process
 	# systemctl daemon-reload
 	# systemctl restart kubelet
 	# kubectl uncordon node01
+	DOC: https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-upgrade/#upgrade-worker-nodes
+	DOC PATH: Tasks -> Administer a Cluster -> Administration with kubeadm -> Upgrading kubeadm clusters
 
 
 Backup and Restore Methods
@@ -535,6 +569,8 @@ Backup and Restore Methods
 --cert=/etc/kubernetes/pki/etcd/server.crt \
 --key=/etc/kubernetes/pki/etcd/server.key \
 snapshot save /opt/snapshot-pre-boot.db
+	DOC: https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/#backing-up-an-etcd-cluster
+	DOC PATH: Tasks -> Administer a Cluster -> Operating etcd clusters for Kubernetes
 
 
 	Restore the original state of the cluster using the backup file.
@@ -542,15 +578,21 @@ snapshot save /opt/snapshot-pre-boot.db
 snapshot restore /opt/snapshot-pre-boot.db  (Restoring from same server and restoring in a different directory)
 	Update the /etc/kubernetes/manifets/etcd.yaml.  Look for the volume name etcd-data.  Change the path to /var/lib/etcd-from-backup so it points to that now.  The pod is automatically re-created, being a static pod and placed under the /etc/kubernetes/manifests directory.  Also change the voulmeMounts mountPath to /var/lib/etcd-from-backup.
 	TO GO THROUGH AGAIN....
+	DOC: https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/#restoring-an-etcd-cluster
+	DOC PATH: Tasks -> Administer a Cluster -> Operating etcd clusters for Kubernetes
 	
 	
 
 Backup and Restore Methods 2
 	How many clusters are defined in the kubeconfig on the student-node?
 	SOLUTION: kubectl config get-clusters
+	DOC: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_config/
+	DOC PATH: Reference -> Command (kubectl) -> kubectl -> kubectl config
 	
 	Switch to cluster1
 	SOLUTION: kubectl config use-context cluster1
+	DOC: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_config/
+	DOC PATH: Reference -> Command (kubectl) -> kubectl -> kubectl config
 	
 	What is the IP address of the External ETCD datastore used in cluster2?
 	SOLUTION: SSH to the node it should be on.  cluster2-controlplane.
@@ -565,6 +607,9 @@ Backup and Restore Methods 2
  --cert=/etc/etcd/pki/etcd.pem \
  --key=/etc/etcd/pki/etcd-key.pem \
   member list
+  
+	DOC: https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/#securing-communication
+	DOC PATH: Tasks -> Administer a Cluster -> Operating etcd clusters for Kubernetes
 	
 	
 	Take a backup of etcd on cluster1 and save it on the student-node at the path /opt/cluster1.db
@@ -575,6 +620,8 @@ Backup and Restore Methods 2
 	Copy backup to another node.
 	scp controlplane:/opt/cluster1.db /optcluster1.db
 	TO GO THROUGH AGAIN... INCLUDING RESTORES
+	DOC: https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/#backing-up-an-etcd-cluster
+	DOC PATH: Tasks -> Administer a Cluster -> Operating etcd clusters for Kubernetes
 	
 	
 	
@@ -585,41 +632,69 @@ SECURITY
 View Certificate Details
 	Identify the certificate file used for the kube-api server.
 	SOLUTION: cat /etc/kubernetes/manifests/kube-apiserver.yaml and look for the line --tls-cert-file.
+	DOC: https://kubernetes.io/docs/reference/setup-tools/kubeadm/implementation-details/#constants-and-well-known-values-and-paths
+	DOC PATH: Reference -> Setup Tools -> Kubeadm -> Implementation details
 	
 	Identify the Certificate file used to authenticate kube-apiserver as a client to ETCD Server.
 	SOLUTION: cat /etc/kubernetes/manifests/kube-apiserver.yaml and look for the line etcd-certfile
+	DOC: https://kubernetes.io/docs/reference/setup-tools/kubeadm/implementation-details/#constants-and-well-known-values-and-paths
+	DOC PATH: Reference -> Setup Tools -> Kubeadm -> Implementation details
 	
 	Identify the key used to authenticate kubeapi-server to the kubelet server.
 	SOLUTION: cat /etc/kubernetes/manifests/kube-apiserver.yaml and look for the line kubelet-client-key
+	DOC: https://kubernetes.io/docs/reference/setup-tools/kubeadm/implementation-details/#constants-and-well-known-values-and-paths
+	DOC PATH: Reference -> Setup Tools -> Kubeadm -> Implementation details
 	
 	Identify the key used to authenticate kubeapi-server to the kubelet server.
 	SOLUTION: cat /etc/kubernetes/manifests/etcd.yaml and look for the line cert-file
+	DOC: https://kubernetes.io/docs/reference/setup-tools/kubeadm/implementation-details/#constants-and-well-known-values-and-paths
+	DOC PATH: Reference -> Setup Tools -> Kubeadm -> Implementation details
 	
 	Identify the ETCD Server CA Root Certificate used to serve ETCD Server.  ETCD can have its own CA. So this may be a different CA certificate than the one used by kube-api server.
 	SOLUTION: cat /etc/kubernetes/manifests/etcd.yaml and look for the line trusted-ca-file
+	DOC: https://kubernetes.io/docs/reference/setup-tools/kubeadm/implementation-details/#constants-and-well-known-values-and-paths
+	DOC PATH: Reference -> Setup Tools -> Kubeadm -> Implementation details
 	
 	What is the Common Name (CN) configured on the Kube API Server Certificate?
 	SOLUTION: openssl x509 -in /etc/kubernetes/pki/apiserver.crt -text.  Look for Subject CN
+	DOC: https://kubernetes.io/docs/setup/best-practices/certificates/
+	DOC PATH: Getting Stated -> Best Practices -> PKI certificates and requirements
+	DOC: https://kubernetes.io/docs/tasks/administer-cluster/certificates/
+	DOC PATH: Tasks -> Generate Certificates Manually
 
 	What is the name of the CA who issued the Kube API Server Certificate?
 	SOLUTION: openssl x509 -in /etc/kubernetes/pki/apiserver.crt -text.  Look for Issuer CN
+	DOC: https://kubernetes.io/docs/setup/best-practices/certificates/
+	DOC PATH: Getting Stated -> Best Practices -> PKI certificates and requirements
+	DOC: https://kubernetes.io/docs/tasks/administer-cluster/certificates/
+	DOC PATH: Tasks -> Generate Certificates Manually
 
 	What is the Common Name (CN) configured on the ETCD Server certificate?
 	SOLUTION: openssl x509 -in /etc/kubernetes/pki/etcd/server.crt -text.  Look for Subject CN
+	DOC: https://kubernetes.io/docs/setup/best-practices/certificates/
+	DOC PATH: Getting Stated -> Best Practices -> PKI certificates and requirements
+	DOC: https://kubernetes.io/docs/tasks/administer-cluster/certificates/
+	DOC PATH: Tasks -> Generate Certificates Manually
 	
 	Kubectl suddenly stops responding to your commands. Check it out! Someone recently modified the /etc/kubernetes/manifests/etcd.yaml file
 	SOLUTION: The --cert-file path .crt file does not exist.  The path should be corrected.  Update the YAML to use /etc/kubernetes/pki/etcd/server.crt instead.  YAML - /etc/kubernetes/manifests/etcd.yaml
-		
+	DOC: https://kubernetes.io/docs/reference/setup-tools/kubeadm/implementation-details/#constants-and-well-known-values-and-paths
+	DOC PATH: Reference -> Setup Tools -> Kubeadm -> Implementation details
+	
 	The kube-api server stopped again! Check it out. Inspect the kube-api server logs and identify the root cause and fix the issue.
 	SOLUTION: Inspect the kube-apiserver.  crictl ps -a | grep kube-apiserver
 	Inspect the logs - crictl logs --tail=2 <CONTAINERID>.
 	You may get a handshake failed: tls: failed to verify certificate kind of error.
 	Go to the YAML and correct it.  /etc/kubernetes/manifests/kube-apiserver.yaml
 	In the YAML, use /etc/kubernetes/pki/etcd/ca.crt for the ETCD CA Certificate.
+	DOC: https://kubernetes.io/docs/reference/setup-tools/kubeadm/implementation-details/#constants-and-well-known-values-and-paths
+	DOC PATH: Reference -> Setup Tools -> Kubeadm -> Implementation details
 
 Certificates API
 	Create a CertificateSigningRequest object with the name akshay with the contents of the akshay.csr file
 	SOLUTION: Generate a base64 format for the .csr.  Then create a YAML and use that base64 in that.
+	DOC: https://kubernetes.io/docs/reference/access-authn-authz/certificate-signing-requests/#create-certificatessigningrequest
+	DOC PATH: Reference -> API Access Control -> Certificates and Certificate Signing Request
 	YAML:
 		---
 		apiVersion: certificates.k8s.io/v1
@@ -636,9 +711,13 @@ Certificates API
 
 	What is the Condition of the newly created Certificate Signing Request object?
 	SOLUTION: kubectl get csr
+	DOC: https://kubernetes.io/docs/reference/access-authn-authz/certificate-signing-requests/#approve-certificate-signing-request
+	DOC PATH: Reference -> API Access Control -> Certificates and Certificate Signing Request
 	
 	Approve the CSR Request
 	SOLUTION: kubectl certificate approve akshay
+	DOC: https://kubernetes.io/docs/reference/access-authn-authz/certificate-signing-requests/#approve-certificate-signing-request
+	DOC PATH: Reference -> API Access Control -> Certificates and Certificate Signing Request
 	
 	
 	
