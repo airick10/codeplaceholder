@@ -1,0 +1,681 @@
+CORE CONCEPTS
+Pods
+	Create a new pod with the name redis and the image redis123.  Use a pod-definition YAML file. And yes the image name is wrong!
+	SOLUTION: kubectl run redis --image=redis123 --dry-run=client -o yaml > redis-definition.yaml
+	Edit YAML and apply
+	
+ReplicaSets
+	Create a ReplicaSet using the replicaset-definition-1.yaml file located at /root/.  There is an issue with the file, so try to fix it.
+	SOLUTION: You can just look at the YAML file.  You’ll see the apiVersion is wrong.  It should be ‘apps/v1’ for ReplicaSets
+	ALSO:  kubectl api-resources - Gives you a list of API versions (Good to do kubectl api-resources | grep replicaset)
+	ALSO:  kubectl explain replicaset - Doc on the YAML sections and what is needed.
+	
+	
+	Fix the original replica set new-replica-set to use the correct busybox image.  Either delete and recreate the ReplicaSet or Update the existing ReplicaSet and then delete all PODs, so new ones with the correct image will be created.
+	SOLUTION: kubectl edit replicaset new-replica-set
+	Edit YAML (modify the name).  Delete the existing pods so they can recreate
+	
+	
+	Scale the ReplicaSet to 5 PODs.  Use kubectl scale command or edit the replicaset using kubectl edit replicaset.
+	SOLUTION: kubectl scale rs new-replica-set --replicas=5 OR kubectl edit rs new-replica-set (Edit YAML)
+
+
+Deployments
+	Create a new Deployment with the below attributes using your own deployment definition file.
+	Name: httpd-frontend;
+	Replicas: 3;
+	Image: httpd:2.4-alpine
+	SOLUTION: Two options.  1) Create the YAML.  2) Get a current deployment (if around) and use that yaml, copy, edit, apply.  ‘kubectl get deploy deployment-1 -o yaml > test.yaml
+	YAML to build:
+		---
+			apiVersion: apps/v1
+			kind: Deployment
+			metadata:
+  			  name: httpd-frontend
+			spec:
+  			  replicas: 3
+  			  selector:
+    			matchLabels:
+      				name: httpd-frontend
+ 			 template:
+    			metadata:
+      			labels:
+        			name: httpd-frontend
+    			spec:
+      			    containers:
+      			- name: httpd-frontend
+        		  image: httpd:2.4-alpine
+	
+Services
+	What is the targetPort configured on the kubernetes service?
+	SOLUTION: kubectl descrive svc kubernetes.  Look for the TargetPort field.
+	
+	Create a new service to access the web application using the service-definition-1.yaml file.
+	Name: webapp-service
+	Type: NodePort
+	targetPort: 8080
+	port: 8080
+	nodePort: 30080
+	selector:
+  		name: simple-webapp
+	SOLUTION: Two options.  1) Create the YAML.  2) Get a current deployment (if around) and use that yaml, copy, edit, apply.  ‘kubectl get svc kubernetes -o yaml > test.yaml
+	YAML to build:
+			---
+			apiVersion: v1
+			kind: Service
+			metadata:
+  			  name: webapp-service
+  			  namespace: default
+			spec:
+  			  ports:
+  			  - nodePort: 30080
+    			port: 8080
+    			targetPort: 8080
+  			selector:
+    			name: simple-webapp
+  			type: NodePort
+	
+	
+	
+Namespaces
+Imperative Commands
+	Deploy a redis pod using the redis:alpine image with the labels set to tier=db.  Either use imperative commands to create the pod with the labels. Or else use imperative commands to generate the pod definition file, then add the labels before creating the pod using the file.
+	SOLUTION: Did it using the dry run YAML and editing the label.  But here’s the imperative command for the label.  kubectl get redis -l tier=db --image=redis:alpine
+	
+	
+	Create a service redis-service to expose the redis application within the cluster on port 6379. Use imperative commands.
+	SOLUTION: kubectl expose pod redis --port=6379 --name redis-service
+	
+	
+	Create a deployment named webapp using the image kodekloud/webapp-color with 3 replicas.  Try to use imperative commands only. Do not create definition files.
+	SOLUTION: kubectl create deployment  webapp --image=kodekloud/webapp-color --replicas=3
+
+
+	Create a pod called httpd using the image httpd:alpine in the default namespace. Next, create a service of type ClusterIP by the same name (httpd). The target port for the service should be 80.  Try to do this with as few steps as possible.
+	SOLUTION: kubectl run httpd --image=httpd:alpine --port=80 --expose
+
+
+------------------------------------------------------------
+SCHEDULING
+Manual Scheduling
+	Inspect the pod. Why is it in a pending state?
+	SOLUTION: Check if the Pod is on a node.  It might not be.  ‘kubectl get pods -A -o wide’
+	You can delete the pod and set the node manually by adjusting it’s yaml.  Add the nodeName field.
+	YAML
+			apiVersion: v1
+			kind: Pod
+			metadata:
+  			  name: nginx
+			spec:
+  			  nodeName: node01
+ 			  containers:
+ 			   -  image: nginx
+     			  name: nginx
+	
+	
+Labels and Selectors
+	We have deployed a number of PODs. They are labelled with tier, env and bu. How many PODs exist in the dev environment (env)?
+	SOLUTION: kubectl get pods --selector env=dev
+	
+	Identify the POD which is part of the prod environment, the finance BU and of frontend tier?
+	SOLUTION: kubectl get all --selector env=prod,bu=finance,tier=frontend
+	
+	A ReplicaSet definition file is given replicaset-definition-1.yaml. Attempt to create the replicaset; you will encounter an issue with the file. Try to fix it.
+	SOLUTION: The label under template has tier: nginx.  It should be tier:frontend
+	YAML
+		---
+		apiVersion: apps/v1
+		kind: ReplicaSet
+		metadata:
+   		  name: replicaset-1
+		spec:
+   		replicas: 2
+   		selector:
+      		matchLabels:
+        		tier: front-end
+   		template:
+     	  metadata:
+       		labels:
+        	tier: front-end
+     	  spec:
+       		containers:
+       		- name: nginx
+         	  image: nginx
+
+
+
+Taints and Tolerations
+	Create a taint on node01 with key of spray, value of mortein and effect of NoSchedule
+	SOLUTION: kubectl taint nodes node01 spray=mortein:NoSchedule
+	
+	Create another pod named bee with the nginx image, which has a toleration set to the taint mortein.
+	SOLUTION: Create a Yaml
+	YAML
+			---
+			apiVersion: v1
+			kind: Pod	
+			metadata:
+  			  name: bee
+			spec:
+  			  containers:
+  			  - image: nginx
+    			name: bee
+  			  tolerations:
+  			  - key: spray
+    			value: mortein
+    			effect: NoSchedule
+    			operator: Equal
+
+	Remove the taint on controlplane, which currently has the taint effect of NoSchedule.
+	SOLUTION: kubectl taint nodes controlplane node-role.kubernetes.io/control-plane:NoSchedule-
+
+
+Node Affinity
+	Apply a label color=blue to node node01
+	SOLUTION: kubectl label node node01 color=blue
+	
+	Which nodes can the pods for the blue deployment be placed on?
+	SOLUTION: Look at each node to see if it has any active taints.  ‘kubectl describe node controlplane’
+	
+	Set Node Affinity to the deployment to place the pods on node01 only.
+	Name: blue
+	Replicas: 3
+	Image: nginx 
+	NodeAffinity: requiredDuringSchedulingIgnoredDuringExecution
+	Key: color
+	value: blue
+	SOLUTION: Edit the deployment.  Add the affinity section to the containers:
+	YAML
+	spec:
+		replicas: 3
+		selector:
+		template:
+			spec:
+				containers:
+				affinity:
+					nodeAffinity:
+          				requiredDuringSchedulingIgnoredDuringExecution:
+            				nodeSelectorTerms:
+            				- matchExpressions:
+              				   - key: color
+                				 operator: In
+                				 values:
+                				 - blue
+	
+	Create a new deployment named red with the nginx image and 2 replicas, and ensure it gets placed on the controlplane node only.  Use the label key - node-role.kubernetes.io/control-plane - which is already set on the controlplane node.
+	Name: red
+	Replicas: 2
+	Image: nginx
+	NodeAffinity: requiredDuringSchedulingIgnoredDuringExecution
+	Key: node-role.kubernetes.io/control-plane
+	Use the right operator
+	SOLUTION: Create a YAML
+	YAML:
+			---
+			apiVersion: apps/v1
+			kind: Deployment
+			metadata:
+  			  name: red
+			spec:
+  			  replicas: 2
+  			  selector:
+    			matchLabels:
+      				run: nginx
+  			  template:
+    			metadata:
+      			  labels:
+        			 run: nginx
+    			spec:
+      			  containers:
+      			  - image: nginx
+        			imagePullPolicy: Always
+        			name: nginx
+      			  affinity:
+        			nodeAffinity:
+          			  requiredDuringSchedulingIgnoredDuringExecution:
+            			 nodeSelectorTerms:
+            				- matchExpressions:
+              				  - key: node-role.kubernetes.io/control-plane
+                				  operator: Exists
+
+Resource Limits
+	The elephant pod runs a process that consumes 15Mi of memory. Increase the limit of the elephant pod to 20Mi.
+	SOLUTION: kubectl get pods elephant -o yaml > em.yaml (I did kubectl edit, which complicates it).  Edit the YAML and adjust the RAM Limit.
+	Delete the current Pod.  Recreate.  Don’t just to do kubectl apply -f test.yaml
+	
+	
+DaemonSets
+	Deploy a DaemonSet for FluentD Logging.  Use the given specifications.
+	Name: elasticsearch
+	Namespace: kube-system
+	Image: registry.k8s.io/fluentd-elasticsearch:1.20
+	SOLUTION: An easy way to create a DaemonSet is to first generate a YAML file for a Deployment with the command kubectl create deployment elasticsearch --image=registry.k8s.io/fluentd-elasticsearch:1.20 -n kube-system --dry-run=client -o yaml > fluentd.yaml. Next, remove the replicas, strategy and status fields from the YAML file using a text editor. Also, change the kind from Deployment to DaemonSet.
+
+
+Static Pods
+	How many static pods exist in this cluster in all namespaces?
+	SOLUTION: kubectl get pods -A and look for those with -controlplane appended in the name
+	
+	What is the path of the directory holding the static pod definition files?
+	SOLUTION:  Identify the config file.  ps -aux | grep /usr/bin/kubelet.  You may see the kublet config file is used in /var/lib/kublet/config.yaml.
+	Next, lookup the value assigned for staticPodPath.  “grep -i staticpod /var/lib/kubelet/config.yaml”.  The path will show /etc/kubernetes/manifests
+	
+	Create a static pod named static-busybox that uses the busybox image and the command sleep 1000
+	Name: static-busybox
+	Image: busybox
+	SOLUTION: kubectl run --restart=Never --image=busybox static-busybox --dry-run=client -o yaml --command -- sleep 1000 > /etc/kubernetes/manifests/static-busybox.yaml.
+	kubectl apply -f static-busybox.yaml
+	
+	We just created a new static pod named static-greenbox. Find it and delete it.
+	SOLUTION: See what node the pod is in.  kubectl get pods -A.
+	ssh to that node and identify the path for static pods.  ps -ef | grep /usr/bin/kubelet.  Look for the directory where kubeconfig sits.
+	Look for the static pod in that directory.  grep -i staticpod /var/lib/kubelet/config.yaml (or whatever directory the yaml is in)
+	Now that you have the path, go to it and delete the yaml file.  Go back to controlplane and try to delete the pod in K8s.
+	
+Multiple Schedulers
+	What is the name of the POD that deploys the default kubernetes scheduler in this environment?
+	SOLUTION: kubectl get pods -n kube-system
+	
+	Deploy an additional scheduler to the cluster following the given specification.
+	Use the manifest file provided at /root/my-scheduler.yaml.
+	Name: my-scheduler
+	Status: Running
+	Correct image used?
+	SOLUTION: Edit my-scheduler.yaml.  Basically, just ensure the image is set as registry.k8s.io/kube-scheduler:v1.29.0
+	
+	A POD definition file is given. Use it to create a POD with the new custom scheduler.
+	File is located at /root/nginx-pod.yaml
+	SOLUTION: Edit the nginx-pod.yaml file.  Add a schedulerName.
+	YAML
+		apiVersion: v1 
+		kind: Pod 
+		metadata:
+  		  name: nginx 
+		spec:
+  		  schedulerName: my-scheduler
+  		  containers:
+  		  - image: nginx
+    		name: nginx
+------------------
+LOGGING & MONITORING
+Monitor Cluster Components
+	Identify the POD that consumes the most Memory(bytes) in default namespace.
+	SOLUTION: kubectl top pod
+	
+	
+Managing Application Logs
+
+------------------
+APPLICATION LIFESTYLE MANAGEMENT
+Rolling Updates and Rollbacks
+	Upgrade the application by setting the image on the deployment to kodekloud/webapp-color:v2.  Do not delete and re-create the deployment. Only set the new image name for the existing deployment.
+	SOLUTION: Edit the deployment.  Save it.  The rollout will automatically occur.  kubectl edit deployment frontend and modify the image to webapp:v2 using v2 as the new version from docker.
+	
+
+Commands and Arguments
+	Create a pod with the ubuntu image to run a container to sleep for 5000 seconds. Modify the file ubuntu-sleeper-2.yaml.
+	SOLUTION: Edit the YAML provided
+	YAML:
+		---
+		apiVersion: v1 
+		kind: Pod 
+		metadata:
+  		  name: ubuntu-sleeper-2 
+		spec:
+  		  containers:
+  		  - name: ubuntu
+    		image: ubuntu
+    		command:
+      		  - "sleep"
+      		  - "5000"
+      		  
+	Create a pod with the given specifications. By default it displays a blue background. Set the given command line arguments to change it to green.
+	Pod Name: webapp-green
+	Image: kodekloud/webapp-color
+	Command line arguments: --color=green
+	SOLUTION:  Create a YAML
+	YAML:
+		---
+		apiVersion: v1 
+		kind: Pod 
+		metadata:
+  		  name: webapp-green
+  		  labels:
+      		name: webapp-green 
+		spec:
+  		  containers:
+  		  - name: simple-webapp
+    		image: kodekloud/webapp-color
+    		args: ["--color", "green"]
+	
+		
+Env Variables
+	Update the environment variable on the POD to use only the APP_COLOR key from the newly created ConfigMap. 
+	SOLUTION: kubectl get pods webapp-color -o yaml > test.yaml.  Then Delete the pod.  Edit the yaml
+	YAML:  Change value: xxx to this configmap
+	spec
+	  containers:
+	  - env:
+	  	- name: APP_COLOR
+	  	  valueFrom:
+	  	  	  configMapKeyRef:
+	  	  	  	name: <ConfigMapName>
+			    key: APP_COLOR
+			    
+			    
+			    
+Secrets
+	The reason the application is failed is because we have not created the secrets yet. Create a new secret named db-secret with the data given below.
+	Secret Name: db-secret
+	Secret 1: DB_Host=sql01
+	Secret 2: DB_User=root
+	Secret 3: DB_Password=password123
+	SOLUTION: kubectl create secret generic db-secret --from-literal=DB_Host=sql01 --from-literal=DB_User=root --from-literal=DB_Password=password123
+	
+	Configure webapp-pod to load environment variables from the newly created secret.
+	SOLUTION: Export the pod - kubectl get pods webapp -o yaml > em.yaml.  Add the secret to the YAML
+	YAML:
+			---
+			apiVersion: v1 
+			kind: Pod 
+			metadata:
+  			  labels:
+    			name: webapp-pod
+  			  name: webapp-pod
+  			  namespace: default 
+			spec:
+  			  containers:
+  			  - image: kodekloud/simple-webapp-mysql
+    			imagePullPolicy: Always
+    			name: webapp
+    			envFrom:
+    			- secretRef:
+        			name: db-secret
+	
+
+Multi Container Pods
+	Create a multi-container pod with 2 containers.
+	Name: yellow
+	Container 1 Name: lemon
+	Container 1 Image: busybox
+	Container 2 Name: gold
+	Container 2 Image: redis
+	SOLUTION:  Create a YAML
+	YAML:
+		apiVersion: v1
+		kind: Pod
+		metadata:
+  		  name: yellow
+		spec:
+  		  containers:
+  		  - name: lemon
+    		image: busybox
+    		command:
+      			- sleep
+      			- "1000"
+  		  - name: gold
+    		image: redis
+    		
+    		
+    The application outputs logs to the file /log/app.log. View the logs and try to identify the user having issues with Login.  The app, called ‘app’ is in the elastic-search namespace.
+    SOLUTION: kubectl -n elastic-stack exec -it app -- cat /log/app.log
+    
+    
+    Edit the pod in the elastic-stack namespace to add a sidecar container to send logs to Elastic Search. Mount the log volume to the sidecar container.  Only add a new container. Do not modify anything else. Use the spec provided below.
+    Name: app
+	Container Name: sidecar
+	Container Image: kodekloud/filebeat-configured
+	Volume Mount: log-volume
+	Mount Path: /var/log/event-simulator/
+	Existing Container Name: app
+	Existing Container Image: kodekloud/event-simulator
+    SOLUTION: Create a YAML.  Delete and re-create the pod.
+    YAML:  
+		---
+		apiVersion: v1
+		kind: Pod
+		metadata:
+  		   name: app
+  		   namespace: elastic-stack
+  		   labels:
+    		name: app
+		spec:
+  		  containers:
+  		  - name: app
+    		image: kodekloud/event-simulator
+    		volumeMounts:
+    		- mountPath: /log
+      		  name: log-volume
+  		    - name: sidecar
+    		  image: kodekloud/filebeat-configured
+    		  volumeMounts:
+    		  - mountPath: /var/log/event-simulator/
+      			name: log-volume
+  			volumes:
+  			- name: log-volume
+    		  hostPath:
+      			# directory location on host
+      		  path: /var/log/webapp
+      			# this field is optional
+      		  type: DirectoryOrCreate
+
+
+	
+Init Containers
+	Identify the pod that has an initContainer configured.
+	SOLUTION:  kubectl describe pod blue.  You’ll see there’s an Init Container.
+
+	
+	Update the pod red to use an initContainer that uses the busybox image and sleeps for 20 seconds
+	SOLUTION:  Create a YAML.  Delete and re-create the pod.
+	YAML:
+		---
+		apiVersion: v1
+		kind: Pod
+		metadata:
+  		  name: red
+  		  namespace: default
+		spec:
+  			containers:
+  			- command:
+    		  - sh
+    		  - -c
+    		  - echo The app is running! && sleep 3600
+    		  image: busybox:1.28
+    		  name: red-container
+  			initContainers:
+  			- image: busybox
+    		  name: red-initcontainer
+    		  command: 
+      			 - "sleep"
+      			 - "20"
+		
+------------------
+CLUSTER MAINTENANCE
+OS Upgrades
+	We need to take node01 out for maintenance. Empty the node of all applications and mark it unschedulable.
+	SOLUTION:  kubectl drain node01 --ignore-daemonsets
+
+Cluster Upgrade Process
+	What is the current version of the cluster?
+	SOLUTION: kubectl get nodes
+	
+	What is the latest version available for an upgrade with the current version of the kubeadm tool installed?
+	SOLUTION: kubeadm upgrade plan
+	
+	Upgrade the controlplane components to exact version v1.29.0.  Upgrade the kubeadm tool (if not already), then the controlplane components, and finally the kubelet. Practice referring to the Kubernetes documentation page.
+	SOLUTION: Use the documentation.  Example using Ubuntu and upgrading to v1.29.  But here’s step by step. Go to /etc/apt/sources.list.d/kubernetes.list.  Ensure the .gpg is set as the version you want.  v1.28? v1.29?  Whatever
+	# apt update
+	# apt-cache madison kubeadm
+	# apt-get install kubeadm=1.29.0-1.1
+	# kubeadm upgrade plan v1.29.0
+	# kubeadm upgrade apply v1.29.0
+	# apt-get install kubelet=1.29.0-1.1
+	# systemctl daemon-reload
+	# systemctl restart kubelet
+	# kubectl uncordon controlplane
+	
+	
+	Upgrade the worker node to the exact version v1.29.0
+	SOLUTION: Use the documentation.  Example using Ubuntu and upgrading to v1.29.  But here’s step by step. Go to /etc/apt/sources.list.d/kubernetes.list.  Ensure the .gpg is set as the version you want.  v1.28? v1.29?  Whatever
+	# apt update
+	# apt-cache madison kubeadm
+	# apt-get install kubeadm=1.29.0-1.1
+	# kubeadm upgrade node
+	# apt-get install kubelet=1.29.0-1.1
+	# systemctl daemon-reload
+	# systemctl restart kubelet
+	# kubectl uncordon node01
+
+
+Backup and Restore Methods
+	The master node in our cluster is planned for a regular maintenance reboot tonight. While we do not anticipate anything to go wrong, we are required to take the necessary backups. Take a snapshot of the ETCD database using the built-in snapshot functionality.  Store the backup file at location /opt/snapshot-pre-boot.db
+	SOLUTION: ETCDCTL_API=3 etcdctl --endpoints=https://[127.0.0.1]:2379 \
+--cacert=/etc/kubernetes/pki/etcd/ca.crt \
+--cert=/etc/kubernetes/pki/etcd/server.crt \
+--key=/etc/kubernetes/pki/etcd/server.key \
+snapshot save /opt/snapshot-pre-boot.db
+
+
+	Restore the original state of the cluster using the backup file.
+	SOLUTION: Restore the backup:  ETCDCTL_API=3 etcdctl  --data-dir /var/lib/etcd-from-backup \
+snapshot restore /opt/snapshot-pre-boot.db  (Restoring from same server and restoring in a different directory)
+	Update the /etc/kubernetes/manifets/etcd.yaml.  Look for the volume name etcd-data.  Change the path to /var/lib/etcd-from-backup so it points to that now.  The pod is automatically re-created, being a static pod and placed under the /etc/kubernetes/manifests directory.  Also change the voulmeMounts mountPath to /var/lib/etcd-from-backup.
+	TO GO THROUGH AGAIN....
+	
+	
+
+Backup and Restore Methods 2
+	How many clusters are defined in the kubeconfig on the student-node?
+	SOLUTION: kubectl config get-clusters
+	
+	Switch to cluster1
+	SOLUTION: kubectl config use-context cluster1
+	
+	What is the IP address of the External ETCD datastore used in cluster2?
+	SOLUTION: SSH to the node it should be on.  cluster2-controlplane.
+	ps -ef | grep etcd
+	
+	How many nodes are part of the ETCD cluster that etcd-server is a part of?  Note: The ETCD cluster is an external ETCD server, not on the controlplane.
+	SOLUTION:   SSH to the external etcd-server.  Find the endpoints and certs.
+	
+	ETCDCTL_API=3 etcdctl \
+ --endpoints=https://127.0.0.1:2379 \
+ --cacert=/etc/etcd/pki/ca.pem \
+ --cert=/etc/etcd/pki/etcd.pem \
+ --key=/etc/etcd/pki/etcd-key.pem \
+  member list
+	
+	
+	Take a backup of etcd on cluster1 and save it on the student-node at the path /opt/cluster1.db
+	SOLUTION: Inspect the endpoints and certs used by the etcd pod.  (kubectl describe  pods -n kube-system etcd-cluster1-controlplane  | grep advertise-client-urls) & (kubectl describe  pods -n kube-system etcd-cluster1-controlplane  | grep pki)
+	
+	In the controlplane of the cluser1, take a backup with the endpoints and certs that were given (ETCDCTL_API=3 etcdctl --endpoints=https://10.1.220.8:2379 --cacert=/etc/kubernetes/pki/etcd/ca.crt --cert=/etc/kubernetes/pki/etcd/server.crt --key=/etc/kubernetes/pki/etcd/server.key snapshot save /opt/cluster1.db)
+	
+	Copy backup to another node.
+	scp controlplane:/opt/cluster1.db /optcluster1.db
+	TO GO THROUGH AGAIN... INCLUDING RESTORES
+	
+	
+	
+	
+	
+------------------
+SECURITY
+View Certificate Details
+	Identify the certificate file used for the kube-api server.
+	SOLUTION: cat /etc/kubernetes/manifests/kube-apiserver.yaml and look for the line --tls-cert-file.
+	
+	Identify the Certificate file used to authenticate kube-apiserver as a client to ETCD Server.
+	SOLUTION: cat /etc/kubernetes/manifests/kube-apiserver.yaml and look for the line etcd-certfile
+	
+	Identify the key used to authenticate kubeapi-server to the kubelet server.
+	SOLUTION: cat /etc/kubernetes/manifests/kube-apiserver.yaml and look for the line kubelet-client-key
+	
+	Identify the key used to authenticate kubeapi-server to the kubelet server.
+	SOLUTION: cat /etc/kubernetes/manifests/etcd.yaml and look for the line cert-file
+	
+	Identify the ETCD Server CA Root Certificate used to serve ETCD Server.  ETCD can have its own CA. So this may be a different CA certificate than the one used by kube-api server.
+	SOLUTION: cat /etc/kubernetes/manifests/etcd.yaml and look for the line trusted-ca-file
+	
+	What is the Common Name (CN) configured on the Kube API Server Certificate?
+	SOLUTION: openssl x509 -in /etc/kubernetes/pki/apiserver.crt -text.  Look for Subject CN
+
+	What is the name of the CA who issued the Kube API Server Certificate?
+	SOLUTION: openssl x509 -in /etc/kubernetes/pki/apiserver.crt -text.  Look for Issuer CN
+
+	What is the Common Name (CN) configured on the ETCD Server certificate?
+	SOLUTION: openssl x509 -in /etc/kubernetes/pki/etcd/server.crt -text.  Look for Subject CN
+	
+	Kubectl suddenly stops responding to your commands. Check it out! Someone recently modified the /etc/kubernetes/manifests/etcd.yaml file
+	SOLUTION: The --cert-file path .crt file does not exist.  The path should be corrected.  Update the YAML to use /etc/kubernetes/pki/etcd/server.crt instead.  YAML - /etc/kubernetes/manifests/etcd.yaml
+		
+	The kube-api server stopped again! Check it out. Inspect the kube-api server logs and identify the root cause and fix the issue.
+	SOLUTION: Inspect the kube-apiserver.  crictl ps -a | grep kube-apiserver
+	Inspect the logs - crictl logs --tail=2 <CONTAINERID>.
+	You may get a handshake failed: tls: failed to verify certificate kind of error.
+	Go to the YAML and correct it.  /etc/kubernetes/manifests/kube-apiserver.yaml
+	In the YAML, use /etc/kubernetes/pki/etcd/ca.crt for the ETCD CA Certificate.
+
+Certificates API
+	Create a CertificateSigningRequest object with the name akshay with the contents of the akshay.csr file
+	SOLUTION: Generate a base64 format for the .csr.  Then create a YAML and use that base64 in that.
+	YAML:
+		---
+		apiVersion: certificates.k8s.io/v1
+		kind: CertificateSigningRequest
+		metadata:
+  		  name: akshay
+		spec:
+  		  groups:
+  		  - system:authenticated
+  		  request: <Paste the base64 encoded value of the CSR file>
+  		  signerName: kubernetes.io/kube-apiserver-client
+  		  usages:
+  		  - client auth
+
+	What is the Condition of the newly created Certificate Signing Request object?
+	SOLUTION: kubectl get csr
+	
+	Approve the CSR Request
+	SOLUTION: kubectl certificate approve akshay
+	
+	
+	
+
+KubeConfig
+Role Based Access Controls
+Cluster Roles
+Service Accounts
+Image Security
+Security Contexts
+Network Policies
+------------------
+STORAGE
+Persistent Volume Claims
+Storage Class
+-------------------
+NETWORKING
+Explore Environment
+CNI
+Deploy Network Solution
+Networking Weave
+Service Networking
+CoreDNS in Kubernetes
+CKA - Ingress Networking -1
+CKA - Ingress Networking - 2
+------------------
+DESIGN AND INSTALL A KUBERNETES CLUSTER
+
+-----------------
+INSTALL “KUBERNETES THE KUBEADM WAY”
+Deploy a Kubernetes Cluster Using Kubeadm
+-----------------
+TROUBLESHOOTING
+Application Failure
+Control Plane Failure
+Worker Node Failure
+Troubleshoot Network
+-----------------
+OTHER TOPICS
+Advanced Kubectl Commands
