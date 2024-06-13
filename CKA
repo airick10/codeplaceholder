@@ -719,30 +719,535 @@ Certificates API
 	DOC: https://kubernetes.io/docs/reference/access-authn-authz/certificate-signing-requests/#approve-certificate-signing-request
 	DOC PATH: Reference -> API Access Control -> Certificates and Certificate Signing Request
 	
-	
+	You are not aware of a request coming in.  What groups is this CSR requesting access to?
+	SOLUTION:  Look at the YAML of this CSR using -o yaml.  kubectl get csr <CSR-NAME> -o yaml.
 	
 
 KubeConfig
+	Where is the default kubeconfig file located in the current environment?
+	SOLUTION: /root/.kube/config
+	
+	What is the current context set to in the ‘my-kube-config’ file?
+	SOLUTION: kubectl config current-context --kubeconfig my-kube-config 
+	
+	I would like to use the ‘dev-user’ to access ‘test-cluster-1’.  Set the current context to the right one so I can do that.  Use the kubectl config-use-context command
+	SOLUTION: Use that context, using the ‘my-kube-config’ file.   kubectl config --kubeconfig=/root/my-kube-config use-context research
+	To know the current context -> kubectl config --kubeconfig=/root/my-kube-config current-context
+	
+	Set up the my-kube-config file as the default kubeconfig by overwriting the content of ~/.kube/config with the content of the my-kube-config file.
+	SOLUTION: Copy over the file to .kube/config.  cp my-kube-config ~/.kube/config
+	
+	With the current-context set to ‘research’, we are trying to access the cluster.  However something seems to be wrong.  Fix the issue.  All user certs are located in /etc/kubernetes/pki/users
+	SOLUTION:  Check the config in ~/.kube/config.  The client-certificate is wrong for dev-user.  vi ~/.kube/config.
+
 Role Based Access Controls
+	Inspect the environment and identify the authorization modes configured on the cluster.  Check the kube-apiserver settings.  The 
+	SOLUTION:  Get pods and find kube-apiserver-controlplane.  kubectl describe pod kube-apiserver-controlplane -n kube-system.  Look for --authorization-mode.
+	
+	Create the necessary roles and role bindings required for the dev-user to create, list and delete pods in the default namespace
+	Role: developer
+	Role Resources: pods
+	Role Actions: list
+	Role Actions: create
+	Role Actions: delete
+	RoleBinding: dev-user-binding
+	RoleBinding: Bound to dev-user
+	SOLUTION: Create a role.  Imperative Command.  kubectl create role developer --namespace=default --verb=list,create,delete --resource=pods
+	Create a rolebinding.  Imperative Command.  kubectl create rolebinding dev-user-binding --namespace=default --role=developer --user=dev-user
+	
+	Add a new rule in the existing role ‘developer’ to grant the ‘dev-user’ permissions to create deployments in the ‘blue’ namespace
+	SOLUTION: Edit the developer role.  kubectl edit role developer -n blue.  Add the apiGroups section to the bottom of the YAML
+	YAML:
+		apiVersion: rbac.authorization.k8s.io/v1
+		kind: Role
+		metadata:
+  		  name: developer
+  		  namespace: blue
+		rules:
+		- apiGroups:
+  		  - apps
+  		  resourceNames:
+  		  - dark-blue-app
+  		  resources:
+  		  - pods
+  		  verbs:
+  		  - get
+  		  - watch
+  		  - create
+  		  - delete
+		- apiGroups:
+  		  - apps
+  		  resources:
+  		  - deployments
+  		  verbs:
+  		  - create
+	
+	
 Cluster Roles
+	‘michelle’ needs a ClusterRole and ClusterRoleBindings created to allow her to access storage.  You can get API groups and resource names from the command ‘kubectl api-resources’.
+	ClusterRole: storage-admin
+	Resource: persistentvolumes
+	Resource: storageclasses
+	ClusterRoleBinding: michelle-storage-admin
+	ClusterRoleBinding Subject: michelle
+	ClusterRoleBinding Role: storage-admin
+	SOLUTION:  Create Yaml(s) for these roles.  Apply the yaml afterward
+	YAML:
+		---
+		kind: ClusterRole
+		apiVersion: rbac.authorization.k8s.io/v1
+		metadata:
+  		  name: storage-admin
+		rules:
+		- apiGroups: [""]
+  		  resources: ["persistentvolumes"]
+  		  verbs: ["get", "watch", "list", "create", "delete"]
+		- apiGroups: ["storage.k8s.io"]
+  		  resources: ["storageclasses"]
+  		  verbs: ["get", "watch", "list", "create", "delete"]
+		---
+		kind: ClusterRoleBinding
+		apiVersion: rbac.authorization.k8s.io/v1
+		metadata:
+  		  name: michelle-storage-admin
+		subjects:
+		- kind: User
+  		  name: michelle
+  		  apiGroup: rbac.authorization.k8s.io
+		roleRef:
+  		  kind: ClusterRole
+  		  name: storage-admin
+  		  apiGroup: rbac.authorization.k8s.io
+
 Service Accounts
+	Inspect the Dashboard Application POD and identify the Service Account mounted on it.
+	SOLUTION: View the yaml, look for service account.  kubectl get pod web-dashboard -o yaml.  
+	
+	At what location is the Service Account Credentials available within the pod?
+	SOLUTION: Describe the pod.  Look for the Mount for the SA.  kubectl describe pod web-dashboard
+	
+	The application needs a ServiceAccount with the right permissions to be created to authenticate to Kubernetes.  The ‘default’ ServiceAccount has limited access.  Create a new ServiceAccount named ‘dashboard-sa’
+	SOLUTION: kubectl create serviceaccount dashboard-sa
+	
+	Create an authorization token for the newly created service account.  Copy the generated token and taste it into the token field of the UI of the terminal dashboard.
+	SOLUTION: kubectl create token dashboard-sa
+	
+	You shouldn’t have to copy and paste the token each time.  The Dashboard application is programmed to read token from the secret mount location.  However, the ‘default’ service account is mounted.  Update the deployment to use the newly created ServiceAccount.
+	SOLUTION: Use the kubectl set command to set the Service Account to the deployment.  kubectl set serviceaccount deploy/web-dashboard dashboard-sa.
+
 Image Security
+	Create a secret object with the credentials required to access the registry.
+	Name: private-reg-cred
+	Username: dock_user
+	Password: dock_password
+	Server: myprivateregistry.com:5000
+	Email: dock_user@myprivateregistry.com
+	Secret: private-reg-cred
+	Secret Type: docker-registry
+	Secret Data
+	SOLUTION: Use an imperative command.  kubectl create secret docker-registry private-reg-cred --docker-username=dock_user --docker-password=dock_password --docker-server=myprivateregistry.com:5000 --docker-email=dock_user@myprivateregistry.com
+	
+	Configure the deployment to use credentials from the new secret to pull images from the private registry
+	SOLUTION: Edit the deployment and in the spec section with the image, add the imagePullSecrets form the YAML.  imagePullSecrets is at the same level as containers, not inside.
+	YAML:
+		spec:
+      	  containers:
+      	  - image: myprivateregistry.com:5000/nginx:alpine
+        	imagePullPolicy: IfNotPresent
+        	name: nginx
+        	resources: {}
+        	terminationMessagePath: /dev/termination-log
+        	terminationMessagePolicy: File
+          imagePullSecrets:
+          - name: private-reg-cred
+
+	
 Security Contexts
+	What is the user used to execute the sleep process within the ubuntu-sleeper pod?
+	SOLUTION: kubectl exec ubuntu-sleeper -- whoami
+	
+	Edit the pod ubuntu-sleeper to run the sleep process with the userID 1010.  Do not modify the name or image of the pod.
+	SOLUTION: Delete the pod and re-create the YAML adding the security context as user.
+	YAML:
+		---
+		apiVersion: v1
+		kind: Pod
+		metadata:
+  		  name: ubuntu-sleeper
+  		  namespace: default
+		spec:
+  		  securityContext:
+    		runAsUser: 1010
+  		  containers:
+  		  - command:
+    		- sleep
+    		- "4800"
+    		image: ubuntu
+    		name: ubuntu-sleeper
+	
+	Update pod ‘ubuntu-sleeper’ to run as root and with the SYS_TIME capability
+	SOLUTION: Delete the ubnutu-sleeper pod.  Create a pod/YAML
+	YAML:
+		---
+		apiVersion: v1
+		kind: Pod
+		metadata:
+ 		 name: ubuntu-sleeper
+  		 namespace: default
+		spec:
+  		  containers:
+  		  - command:
+    		- sleep
+    		- "4800"
+    		image: ubuntu
+    		name: ubuntu-sleeper
+    		securityContext:
+      		  capabilities:
+        		  add: ["SYS_TIME"]
+	
+	
 Network Policies
+	Create a network policy to allow traffice from Internal application only to the ‘payroll-service’ and ‘db-service’.  Ensure that you allow egress traffice to DNS ports TCP and UDP (port 53) to enable DNS resolution from the internal port.  Using these specs, you might want to enable ingress traffic.
+	Policy Name: internal-policy
+	Policy Type: Egress
+	Egress Allow: payroll
+	Payroll Port: 8080
+	Egress Allow: mysql
+	MySQL Port: 3306
+	SOLUTION: Create a YAML
+	YAML:
+		apiVersion: networking.k8s.io/v1
+		kind: NetworkPolicy
+		metadata:
+  		  name: internal-policy
+ 		  namespace: default
+		spec:
+  		  podSelector:
+    		matchLabels:
+     		  name: internal
+  		  policyTypes:
+  		  - Egress
+  		  - Ingress
+  		  ingress:
+  		    - {}
+  		  egress:
+  		  - to:
+    		- podSelector:
+        		matchLabels:
+          		  name: mysql
+    		ports:
+    		- protocol: TCP
+      		  port: 3306
+      		  
+  		- to:
+    	  - podSelector:
+        		matchLabels:
+          		  name: payroll
+    	  ports:
+    	  - protocol: TCP
+      		port: 8080
+
+  		- ports:
+    	  - port: 53
+      	 	protocol: UDP
+    	  - port: 53
+      		protocol: TCP
+
 ------------------
 STORAGE
 Persistent Volume Claims
+	The ‘webapp’ pod stores logs at /log/app.log.  View the logs
+	SOLUTION:  kubectl exec webapp -- cat /log/app.log
+	
+	Configure a volume to store these logs at /var/log/webapp on the host.
+	Name: webapp
+	Image Name: kodekloud/event-simulator
+	Volume HostPath: /var/log/webapp
+	Volume Mount: /log
+	SOLUTION: Delete the pod and recreate it.  Create a YAML
+	YAML:
+		apiVersion: v1
+		kind: Pod
+		metadata:
+  		  name: webapp
+		spec:
+  		  containers:
+  		  - name: event-simulator
+    		image: kodekloud/event-simulator
+   		    env:
+    	    - name: LOG_HANDLERS
+      		  value: file
+    		volumeMounts:
+    		- mountPath: /log
+      		  name: log-volume
+
+  		  volumes:
+  		  - name: log-volume
+    		hostPath:
+      		  # directory location on host
+      		  path: /var/log/webapp
+      		  # this field is optional
+      		  type: Directory
+
+
+	Create a Persistent Volume with the given speculation
+	Volume Name: pv-log
+	Storage: 100Mi
+	Access Modes: ReadWriteMany
+	Host Path: /pv/log
+	Reclaim Policy: Retain
+	SOLUTION:  Create a YAML
+	YAML:
+		apiVersion: v1
+		kind: PersistentVolume
+		metadata:
+  		  name: pv-log
+		spec:
+  		  persistentVolumeReclaimPolicy: Retain
+  		  accessModes:
+    		- ReadWriteMany
+  		  capacity:
+    		storage: 100Mi
+  		  hostPath:
+    		 path: /pv/log
+    		 
+	Let us claim some of that storage for our application.  Create a PVC with the given specs
+	Volume Name: claim-log-1
+	Storage Request: 50Mi
+	Access Modes: ReadWriteMany
+	SOLUTION: Create a YAML
+	YAML:
+		kind: PersistentVolumeClaim
+		apiVersion: v1
+		metadata:
+ 		  name: claim-log-1
+		spec:
+  		  accessModes:
+    		- ReadWriteMany
+  		  resources:
+    		requests:
+      		  storage: 50Mi
+      		  
+	Update the ‘webapp’ pod to use the persistent volume claim as its storage.
+	Name: webapp
+	Image Name: kodekloud/event-simulator
+	Volume: PersistentVolumeClaim=claim-log-1
+	Volume Mount: /log
+	SOLUTION:  Replace hostPath configured with a new created PersistentVolumeClaim.  You can create a new YAML with this solution
+	YAML:
+		apiVersion: v1
+		kind: Pod
+		metadata:
+  		  name: webapp
+		spec:
+  		  containers:
+  		  - name: event-simulator
+    		image: kodekloud/event-simulator
+    		env:
+    	    - name: LOG_HANDLERS
+      		  value: file
+    	    volumeMounts:
+    	    - mountPath: /log
+      		  name: log-volume
+  		volumes:
+  		- name: log-volume
+    	  persistentVolumeClaim:
+      		claimName: claim-log-1
+	
+
+
 Storage Class
+	Create a new PVC by the name of local-pvc that should bind to the volume ‘local-pv’.
+	PVC: local-pvc
+	Correct Access Mode?
+	Correct StorageClass Used?
+	PVC requests volume size = 500Mi?
+	SOLUTION: Create a YAML
+	YAML:
+		---
+		kind: PersistentVolumeClaim
+		apiVersion: v1
+		metadata:
+  		  name: local-pvc
+		spec:
+  		  accessModes:
+  		  - ReadWriteOnce
+  		  storageClassName: local-storage
+  		  resources:
+    		requests:
+      		  storage: 500Mi
+
+
+	Create a new pod called nginx with the image nginx:alpine.  The Pod should make use of the PVC ‘local-pvc’ and mount the volume at the path /var/www/html.
+	SOLUTION:  Create a YAML
+	YAML:
+		---
+		apiVersion: v1
+		kind: Pod
+		metadata:
+ 		  name: nginx
+ 		  labels:
+    		name: nginx
+		spec:
+  		  containers:
+  		  - name: nginx
+    		image: nginx:alpine
+    		volumeMounts:
+      		  - name: local-persistent-storage
+        		mountPath: /var/www/html
+  		  volumes:
+    		- name: local-persistent-storage
+      		  persistentVolumeClaim:
+        		claimName: local-pvc
+
+
+	Create a new Storage Class called ‘delayed-volume-sc’ that makes use of the below specs
+	provisioner: kubernetes.io/no-provisioner
+	volumeBindingMode: WaitForFirstConsumer
+	SOLUTION: Create a YAML
+	YAML:
+		---
+		apiVersion: storage.k8s.io/v1
+		kind: StorageClass
+		metadata:
+  		  name: delayed-volume-sc
+		provisioner: kubernetes.io/no-provisioner
+		volumeBindingMode: WaitForFirstConsumer
+
 -------------------
 NETWORKING
 Explore Environment
+	If you were to ping google from the controlplane node, which route does it take?  What is the default gateway?
+	SOLUTION:  ip route show default
+	
+	What is the port kube-scheduler is listening on in the controlplane node
+	SOLUTION: netstat -nplt | grep scheduler
+
 CNI
+	Inspect the kubelet service and identify the container runtime endpoint value is set for Kubernetes
+	SOLUTION: ps -aux | grep kubelet | grep --color container-runtime-endpoint.  Look for --container-runtime-endpoint.
+	
+	What is the path configured with all binaries of CNI supported plugins
+	SOLUTION: The binaries are in /opt/cni/bin by default
+	
+	What is the CNI Plugin configured to be used on this kubernetes cluster
+	SOLUTION: ls /etc/cni/net.d.  Identify the name of the plugin.
+
 Deploy Network Solution
+	Deploy weave-net networking solution to the cluster.  The manifest yaml is in /root/weave
+	SOLUTION:  kubectl apply -f weave-daemonset-k8s.yaml (this is in /root/weave)
+	
+	
 Networking Weave
+	What is the networking solution used by this cluster?
+	SOLUTION: Check the config (/etc/cni/net.d)
+
+	What is the POD IP address range configured by ‘weave’?
+	SOLUTION: ip addr show weave
+	
+	What is the default gateway configured on the PODs scheduled on node01?
+	SOLUTION: ssh to node01.  ‘ip route’
+
+
 Service Networking
+	What type of proxy is the ‘kube-proxy’ configured to use?
+	SOLUTION: Check the logs of the kube-proxy.  ‘kubectl logs <kube-proxy-pod> -n kube-system
+
+
 CoreDNS in Kubernetes
-CKA - Ingress Networking -1
+	Where is the configuration file located for configuring the CoreDNS service?
+	SOLUTION: kubectl -n kube-system describe deployments.apps coredns | grep -A2 Args | grep Corefile	
+	How is the Corefile passed into the CoreDNS POD?
+	SOLUTION: kubectl get cm -n kube-system
+	
+	What is the root domain/zone configured for this kubernetes cluster?
+	SOLUTION: kubectl describe configmap coredns -n kube-system
+	
+	What name can be used to access the ‘hr’ web server from the ‘test’ application?
+	SOLUTION: kubectl get svc.  Note the name of the service.
+
+	We just deployed a web server ‘webapp’ that accesses a database ‘mysql’ server.  However the web server is failing to connect to the database server.  Troubleshoot and fix the issue.
+	SOLUTION:  Change the hostname on DB_HOST in the deployment.  ‘kubectl edit deploy webapp’
+	Correct the DB_HOST to mysql.payroll.
+	
+	From the ‘hr’ pod ‘nslookup’ the ‘mysql’ service and redirect the output to a file ‘/root/CKA/nslookup.out’
+	SOLUTION: kubectl exec -it hr -- nslookup mysql.payroll > /root/CKA/nslookup.out
+
+
+CKA - Ingress Networking - 1
+	Which namespace is the Ingress Resource deployed in?
+	SOLUTION: kubectl get ingress --all-namespaces
+	
+	You are requested to make a new application available at /pay.
+	Ingress Created
+	Path: /pay
+	Configure correct backend service
+	Configure correct backend port
+	SOLUTION: Usually you’d edit the ingress-wear-watch resource.  But this is in a different namespace.  Create a new YAML for an ingress resource
+	YAML:
+		---
+		apiVersion: networking.k8s.io/v1
+		kind: Ingress
+		metadata:
+  		  name: test-ingress
+  		  namespace: critical-space
+  		  annotations:
+    		nginx.ingress.kubernetes.io/rewrite-target: /
+    		nginx.ingress.kubernetes.io/ssl-redirect: "false"
+		spec:
+  		  rules:
+  		  - http:
+      			paths:
+      			- path: /pay
+        		  pathType: Prefix
+        		  backend:
+          			service:
+           				name: pay-service
+           				port:
+            			  number: 8282
+		
+
 CKA - Ingress Networking - 2
+	LOOK AT INGRESS CONTROLLER CREATION
+	
+	Create the ingress resource to make the applications available at /wear and /watch on the Ingress service.  Also, make use of the ‘rewrite-target’ annotation field - ‘nginx.ingress.kubernetes.io/rewrite-target: /‘
+	Ingress Created
+	Path: /wear
+	Path: /watch
+	Configure correct backend service for /wear
+	Configure correct backend service for /watch
+	Configure correct backend port for /wear service
+	Configure correct backend port for /watch service
+	SOLUTION: Create a YAML
+	YAML:
+		---
+		apiVersion: networking.k8s.io/v1
+		kind: Ingress
+		metadata:
+  		  name: ingress-wear-watch
+  		  namespace: app-space
+  		  annotations:
+    		nginx.ingress.kubernetes.io/rewrite-target: /
+    		nginx.ingress.kubernetes.io/ssl-redirect: "false"
+		spec:
+ 		  rules:
+  		  - http:
+      		  paths:
+      		  - path: /wear
+        		pathType: Prefix
+        		backend:
+          		  service:
+           			name: wear-service
+           			port: 
+            		  number: 8080
+      		  - path: /watch
+        		pathType: Prefix
+        		backend:
+          		  service:
+           			name: video-service
+           			port:
+            		  number: 8080
+
 ------------------
 DESIGN AND INSTALL A KUBERNETES CLUSTER
 
@@ -752,9 +1257,81 @@ Deploy a Kubernetes Cluster Using Kubeadm
 -----------------
 TROUBLESHOOTING
 Application Failure
+	LOOK AT PODS/ENV VARIABLES/SERVICES/LABELS/PORT NUMBERS.  MAKE SURE THEY ALL SYNC UP.
+	A simple tier 2 application is deployed in the ‘alpha’ namespace.  It must display a green web page on success.  You can see the failure on the web terminal.  Troubleshoot the issue.  The pod is mysql, the service is mysql-service, the deployment is webapp-mysql.  The web service is web-service.
+	SOLUTION:  You may notice getting services, kubectl get svc -n alpha.  There is only a ‘mysql’ service.  If you do a kubectl get deploy webapp-mysql -n alpha -o yaml, you’ll see the DB_HOST is mysql-service.  This should be corrected.  Delete the service ‘mysql’ and create a new service that shows ‘mysql-service’
+	YAML:
+		---
+		apiVersion: v1
+		kind: Service
+		metadata:
+  		  name: mysql-service
+  		  namespace: alpha
+		spec:
+   	 	  ports:
+    	  - port: 3306
+      		targetPort: 3306
+    	  selector:
+      		name: mysql 
+      		
+	The same tier 2 application is deployed in ‘beta’ namespace.  It is failed again. 
+	SOLUTION:  Look at the service for ‘mysql-service’, the targerPort should be 3306 based off the diagram.  It is set to 8080.  Update the YAML.  kubectl edit svc -n beta mysql-service.  Change the targetPort to 3306.
+	
+	The same tier 2 application is deployed in the ‘gamma’ namespace.  It has failed again.
+	SOLUTION:  Look at both the ‘mysql-service’ service and the ‘mysql’ pod.  You may notice the labels are off.  mysql-service -> selector: name=sql00001.  mysql (pod) -> selector: name=mysql
+	Update the ‘mysql-service’ service to change the label.
+
+
 Control Plane Failure
+	The cluster is broken.  We tried deploying an application but it’s not working.  Troubleshoot and fix.
+	SOLUTION:  You’ll notice the kube-scheduler pod is erroring out.  Under describe for the pod, you’ll see back-off restarting failed container kube-scheduler in pod.  Go to the manifests and make sure it looks ok.  Manifests -> /etc/kubernetes/manifests.  Check for typos
+	
+	
+	Scale the deployment ‘app’ to 2 pods
+	SOLUTION: kubectl scale deploy app --replicas=2
+	
+	
+	Another break.  Tried scaling the deployment to 3 replicas.  But it’s not happening
+	SOLUTION: Look at the failing pod.  Check out the YAML.  kubectl get pod pod-name -o yaml
+	Look over hostpaths.  Make sure they look correct.  One has a ‘WRONG-PKI-DIRECTORY’ in it’s path.  Because this is a relicaset/deployment, check out the manifests yaml and change it from there.  This is the kube-controller manifest.
+
 Worker Node Failure
+	Fix the broken cluster
+	SOLUTION: Go to a failing node and check the status of kubectl.  Start it, if necessary.
+	
+	Fix the cluster again.  
+	SOLUTION:  Go to the failing node.  kubectl is failed, but not found.  You can try updating apt-get and installing kubectl, but look at the config file for kubectl.  /var/lib/kubelet/config.yaml.  Make sure everything looks ok here.  In this scenario, a directory was wrong for a cert.
+	
+
 Troubleshoot Network
+	A simple tier 2 application is deployed in the ‘triton’ namespace’.  The application is currently failed.  It has a ‘mysql’ pod, ‘mysql’ service’, a ‘webapp-mysql’ deployment, and a ‘web-service’ service.
+	SOLUTION: The describe for the pod ‘mysql’ suggests that weave it not installed.  Go ahead and install it.  https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/#pod-network.  To apply weave -> kubectl apply -f https://reweave.azurewebsites.net/k8s/v1.29/net.yaml.
+	
+	Another network issue.  Same parameters.  Get Pods shows that kube-proxy is not starting.
+	SOLUTION:  Check out the logs.  kubectl logs -n kube-system <kube-proxy-pod-name>.  Notice that /var/lib/kube-proxy/configuration.conf is missing.  Also check out the configmap for kube-proxy.  kubectl -n kube-system describe configmap kube-proxy.  You’ll see the file there is listed as /var/lib/kube-proxy/kubeconfig.conf.  The daemonset and the configmap appear to be wrong.  Edit the daemonset using kubectl get ds -n kube-system kube-proxy -o yaml > em.yaml
+	Change the config line to --config=/var/lib/kube-proxy/config.conf
+
 -----------------
 OTHER TOPICS
 Advanced Kubectl Commands
+	Get the list of nodes in JSON format and store it in a file at /opt/outputs/nodes.json
+	SOLUTION: kubectl get nodes -o json > /opt/outputs/nodes.json
+	
+	Use JSON PATH query to fetch node names and store them in /opt/outputs/node_names.txt
+	SOLUTION: kubectl get nodes -o=jsonpath='{.items[*].metadata.name}' > /opt/outputs/node_names.txt
+	
+	Use JSON PATH query to retrieve the osImages of all the nodes and store it in a file /opt/outputs/nodes_os.txt
+	SOLUTION: kubectl get nodes -o jsonpath='{.items[*].status.nodeInfo.osImage}' > /opt/outputs/nodes_os.txt
+	
+	A kube-config file is present at /root/my-kube-config. Get the user names from it and store it in a file /opt/outputs/users.txt
+	SOLUTION: kubectl config view --kubeconfig=my-kube-config  -o jsonpath="{.users[*].name}" > /opt/outputs/users.txt
+	
+	A set of Persistent Volumes are available. Sort them based on their capacity and store the result in the file /opt/outputs/storage-capacity-sorted.txt
+	SOLUTION: kubectl get pv --sort-by=.spec.capacity.storage > /opt/outputs/storage-capacity-sorted.txt
+	
+	That was good, but we don't need all the extra details. Retrieve just the first 2 columns of output and store it in /opt/outputs/pv-and-capacity-sorted.txt
+	SOLUTION: kubectl get pv --sort-by=.spec.capacity.storage -o=custom-columns=NAME:.metadata.name,CAPACITY:.spec.capacity.storage > /opt/outputs/pv-and-capacity-sorted.txt
+	
+	Use a JSON PATH query to identify the context configured for the aws-user in the my-kube-config context file and store the result in /opt/outputs/aws-context-name
+	SOLUTION: kubectl config view --kubeconfig=my-kube-config -o jsonpath="{.contexts[?(@.context.user=='aws-user')].name}" > /opt/outputs/aws-context-name
+	
