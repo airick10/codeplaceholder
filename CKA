@@ -5,6 +5,7 @@ VIDEOS - https://www.youtube.com/watch?v=2ZauKFZSc34
 Quick Cheat Sheet - https://kubernetes.io/docs/reference/kubectl/quick-reference/
 Good Guide - https://github.com/David-VTUK/CKA-StudyGuide/tree/master/LabGuide
 
+sudo -i Gives you root privileges. Run this immediately because the user they give you on the exam doesn't seem to have permission to do anything...
 Documentation should be available question by question based on the question
 'k' is already there
 alias change namespace
