@@ -1,3 +1,44 @@
+GENERAL TIPS
+
+VIDEOS - https://www.youtube.com/watch?v=2ZauKFZSc34
+
+Quick Cheat Sheet - https://kubernetes.io/docs/reference/kubectl/quick-reference/
+
+Documentation should be available question by question based on the question
+'k' is already there
+alias change namespace
+	alias kn=‘kubectl config set-context --current --namespace’
+	kn kube-system 
+
+kubectl explain - Gives you all possibilites a resource can have in a yaml
+	# kubectl explain pod
+	# kubectl explain pod.spec
+	# kubectl explain pod.spec.toleration
+	# kubectl explain pod.spec --recursive (Gives everything under spec)
+	# kubectl explain pod.spec --recursive | grep -i toleration
+	
+Using kubectl help.  Combos well with explain
+# k get pod -h
+
+Checking if you can access something as a different user
+# k auth can-i
+# k auth can-i get pods --namespace whatever
+DOC: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_auth/kubectl_auth_can-i/
+DOC PATH: Reference -> Command line tool (kubectl) -> kubectl reference -> kubectl auth -> kubectl auth can-i
+	
+Run command while starting pod (Useful for something like busybox which needs sleep)
+Second command gives container arguments such as sleep 1d to use!
+	# k run busy --image=busybox -- sh -c "sleep 1d"
+	# k run busy --image=busybox --dry-run=client -o yaml -- sh -c "sleep 1d"
+
+When editing a deployment or pod, you may get a temporary file to save.  You can either just apply that temp file or
+# k replace --force --grace-period=0 -f <tmp_yaml_file>
+
+
+
+
+
+
 CORE CONCEPTS
 Pods
 	Create a new pod with the name redis and the image redis123.  Use a pod-definition YAML file. And yes the image name is wrong!
@@ -492,6 +533,8 @@ Multi Container Pods
 Init Containers
 	Identify the pod that has an initContainer configured.
 	SOLUTION:  kubectl describe pod blue.  You’ll see there’s an Init Container.
+	DOC: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/#init-containers-in-use
+	DOC PATH: Concepts -> Workloads -> Pods -> Init Containers
 
 	
 	Update the pod red to use an initContainer that uses the busybox image and sleeps for 20 seconds
@@ -532,6 +575,8 @@ Cluster Upgrade Process
 	
 	What is the latest version available for an upgrade with the current version of the kubeadm tool installed?
 	SOLUTION: kubeadm upgrade plan
+	DOC: https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-upgrade/#call-kubeadm-upgrade
+	DOC PATH: Tasks -> Administer a Cluster -> Administration with kubeadm -> Upgrading kubeadm clusters
 	
 	Upgrade the controlplane components to exact version v1.29.0.  Upgrade the kubeadm tool (if not already), then the controlplane components, and finally the kubelet. Practice referring to the Kubernetes documentation page.
 	SOLUTION: Use the documentation.  Example using Ubuntu and upgrading to v1.29.  But here’s step by step. Go to /etc/apt/sources.list.d/kubernetes.list.  Ensure the .gpg is set as the version you want.  v1.28? v1.29?  Whatever
@@ -599,15 +644,13 @@ Backup and Restore Methods 2
 	ps -ef | grep etcd
 	
 	How many nodes are part of the ETCD cluster that etcd-server is a part of?  Note: The ETCD cluster is an external ETCD server, not on the controlplane.
-	SOLUTION:   SSH to the external etcd-server.  Find the endpoints and certs.
-	
+	SOLUTION: SSH to the external etcd-server.  Find the endpoints and certs.
 	ETCDCTL_API=3 etcdctl \
  --endpoints=https://127.0.0.1:2379 \
  --cacert=/etc/etcd/pki/ca.pem \
  --cert=/etc/etcd/pki/etcd.pem \
  --key=/etc/etcd/pki/etcd-key.pem \
   member list
-  
 	DOC: https://kubernetes.io/docs/tasks/administer-cluster/configure-upgrade-etcd/#securing-communication
 	DOC PATH: Tasks -> Administer a Cluster -> Operating etcd clusters for Kubernetes
 	
@@ -721,18 +764,26 @@ Certificates API
 	
 	You are not aware of a request coming in.  What groups is this CSR requesting access to?
 	SOLUTION:  Look at the YAML of this CSR using -o yaml.  kubectl get csr <CSR-NAME> -o yaml.
+	DOC: https://kubernetes.io/docs/reference/access-authn-authz/certificate-signing-requests/#get-the-certificate
+	DOC PATH -> Reference -> API Access Control -> Certificates and Certificate Signing Request
 	
 
 KubeConfig
 	Where is the default kubeconfig file located in the current environment?
 	SOLUTION: /root/.kube/config
+	DOC: https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/#the-kubeconfig-environment-variable
+	DOC PATH: Concepts -> Configuration -> Organizing Cluster Access Using kubeconfig Files
 	
 	What is the current context set to in the ‘my-kube-config’ file?
 	SOLUTION: kubectl config current-context --kubeconfig my-kube-config 
+	DOC: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_config/kubectl_config_current-context/#synopsis
+	DOC PATH: Reference -> Command line tool (kubectl) -> kubectl reference -> kubectl config -> kubectl config current-context
 	
 	I would like to use the ‘dev-user’ to access ‘test-cluster-1’.  Set the current context to the right one so I can do that.  Use the kubectl config-use-context command
 	SOLUTION: Use that context, using the ‘my-kube-config’ file.   kubectl config --kubeconfig=/root/my-kube-config use-context research
 	To know the current context -> kubectl config --kubeconfig=/root/my-kube-config current-context
+	DOC: https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/#context
+	DOC PATH: Concepts -> Configuration -> Organizing Cluster Access Using kubeconfig Files
 	
 	Set up the my-kube-config file as the default kubeconfig by overwriting the content of ~/.kube/config with the content of the my-kube-config file.
 	SOLUTION: Copy over the file to .kube/config.  cp my-kube-config ~/.kube/config
@@ -743,6 +794,8 @@ KubeConfig
 Role Based Access Controls
 	Inspect the environment and identify the authorization modes configured on the cluster.  Check the kube-apiserver settings.  The 
 	SOLUTION:  Get pods and find kube-apiserver-controlplane.  kubectl describe pod kube-apiserver-controlplane -n kube-system.  Look for --authorization-mode.
+	DOC: https://kubernetes.io/docs/concepts/overview/components/#kube-apiserver
+	DOC PATH: Concepts -> Overview -> Kubernetes Components
 	
 	Create the necessary roles and role bindings required for the dev-user to create, list and delete pods in the default namespace
 	Role: developer
@@ -754,9 +807,15 @@ Role Based Access Controls
 	RoleBinding: Bound to dev-user
 	SOLUTION: Create a role.  Imperative Command.  kubectl create role developer --namespace=default --verb=list,create,delete --resource=pods
 	Create a rolebinding.  Imperative Command.  kubectl create rolebinding dev-user-binding --namespace=default --role=developer --user=dev-user
+	DOC: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_create/kubectl_create_role/
+	DOC PATH: Reference -> Command line tool (kubectl) -> kubectl reference -> kubectl create role
+	DOC: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_create/kubectl_create_rolebinding/
+	DOC PATH: Reference -> Command line tool (kubectl) -> kubectl reference -> kubectl create rolebinding
 	
 	Add a new rule in the existing role ‘developer’ to grant the ‘dev-user’ permissions to create deployments in the ‘blue’ namespace
 	SOLUTION: Edit the developer role.  kubectl edit role developer -n blue.  Add the apiGroups section to the bottom of the YAML
+	DOC: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#role-example
+	DOC PATH: Reference -> API Access Control -> Using RBAC Authorization
 	YAML:
 		apiVersion: rbac.authorization.k8s.io/v1
 		kind: Role
@@ -792,6 +851,9 @@ Cluster Roles
 	ClusterRoleBinding Subject: michelle
 	ClusterRoleBinding Role: storage-admin
 	SOLUTION:  Create Yaml(s) for these roles.  Apply the yaml afterward
+	DOC: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#clusterrole-example
+	DOC: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#clusterrolebinding-example
+	DOC PATH: Reference -> API Access Control -> Using RBAC Authorization
 	YAML:
 		---
 		kind: ClusterRole
@@ -822,18 +884,27 @@ Cluster Roles
 Service Accounts
 	Inspect the Dashboard Application POD and identify the Service Account mounted on it.
 	SOLUTION: View the yaml, look for service account.  kubectl get pod web-dashboard -o yaml.  
+	DOC: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#use-the-default-service-account-to-access-the-api-server
+	DOC PATH: Tasks -> Configure Pods and Containers -> Configure Service Accounts for Pods
 	
 	At what location is the Service Account Credentials available within the pod?
 	SOLUTION: Describe the pod.  Look for the Mount for the SA.  kubectl describe pod web-dashboard
 	
 	The application needs a ServiceAccount with the right permissions to be created to authenticate to Kubernetes.  The ‘default’ ServiceAccount has limited access.  Create a new ServiceAccount named ‘dashboard-sa’
 	SOLUTION: kubectl create serviceaccount dashboard-sa
+	DOC: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_create/kubectl_create_serviceaccount/
+	DOC PATH: Reference -> Command line tool (kubectl) -> kubectl reference -> kubectl create -> kubectl create serviceaccount
 	
 	Create an authorization token for the newly created service account.  Copy the generated token and taste it into the token field of the UI of the terminal dashboard.
 	SOLUTION: kubectl create token dashboard-sa
+	DOC: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#manually-create-an-api-token-for-a-serviceaccount
+	DOC PATH: Tasks -> Configure Pods and Containers -> Configure Service Accounts for Pods
 	
 	You shouldn’t have to copy and paste the token each time.  The Dashboard application is programmed to read token from the secret mount location.  However, the ‘default’ service account is mounted.  Update the deployment to use the newly created ServiceAccount.
 	SOLUTION: Use the kubectl set command to set the Service Account to the deployment.  kubectl set serviceaccount deploy/web-dashboard dashboard-sa.
+	DOC: https://kubernetes.io/docs/reference/kubectl/generated/kubectl_set/kubectl_set_serviceaccount/
+	DOC PATH: Reference -> Command line tool (kubectl) -> kubectl reference -> kubectl set -> kubectl set serviceaccount
+
 
 Image Security
 	Create a secret object with the credentials required to access the registry.
@@ -846,9 +917,17 @@ Image Security
 	Secret Type: docker-registry
 	Secret Data
 	SOLUTION: Use an imperative command.  kubectl create secret docker-registry private-reg-cred --docker-username=dock_user --docker-password=dock_password --docker-server=myprivateregistry.com:5000 --docker-email=dock_user@myprivateregistry.com
+	DOC: https://kubernetes.io/docs/concepts/configuration/secret/#docker-config-secrets
+	DOC PATH: Concepts -> Configuration -> Secrets
+	DOC: https://kubernetes.io/docs/tasks/configmap-secret/managing-secret-using-kubectl/
+	DOC PATH: Tasks -> Managing Secrets -> Managing Secrets using kubectl
+	
+	
 	
 	Configure the deployment to use credentials from the new secret to pull images from the private registry
 	SOLUTION: Edit the deployment and in the spec section with the image, add the imagePullSecrets form the YAML.  imagePullSecrets is at the same level as containers, not inside.
+	DOC: https://kubernetes.io/docs/concepts/containers/images/#referring-to-an-imagepullsecrets-on-a-pod
+	DOC PATH: Concepts -> Containers -> Images
 	YAML:
 		spec:
       	  containers:
@@ -865,9 +944,13 @@ Image Security
 Security Contexts
 	What is the user used to execute the sleep process within the ubuntu-sleeper pod?
 	SOLUTION: kubectl exec ubuntu-sleeper -- whoami
+	DOC: https://kubernetes.io/docs/tasks/debug/debug-application/get-shell-running-container/#running-individual-commands-in-a-container
+	DOC PATH: tasks -> Monitoring, Logging, and Debugging -> Troubleshooting Applications -> Get a Shell to a Running Container
 	
 	Edit the pod ubuntu-sleeper to run the sleep process with the userID 1010.  Do not modify the name or image of the pod.
 	SOLUTION: Delete the pod and re-create the YAML adding the security context as user.
+	DOC: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod
+	DOC PATH: Tasks -> Configure Pods and Containers -> Configure a Security Context for a Pod or Container
 	YAML:
 		---
 		apiVersion: v1
@@ -887,6 +970,8 @@ Security Contexts
 	
 	Update pod ‘ubuntu-sleeper’ to run as root and with the SYS_TIME capability
 	SOLUTION: Delete the ubnutu-sleeper pod.  Create a pod/YAML
+	DOC: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-capabilities-for-a-container
+	DOC PATH: Tasks -> Configure Pods and Containers -> Configure a Security Context for a Pod or Container
 	YAML:
 		---
 		apiVersion: v1
@@ -915,6 +1000,8 @@ Network Policies
 	Egress Allow: mysql
 	MySQL Port: 3306
 	SOLUTION: Create a YAML
+	DOC: https://kubernetes.io/docs/concepts/services-networking/network-policies/#networkpolicy-resource
+	DOC PATH: Concepts -> Services, Load Balancing, and Networking -> Network Policies
 	YAML:
 		apiVersion: networking.k8s.io/v1
 		kind: NetworkPolicy
@@ -958,6 +1045,9 @@ STORAGE
 Persistent Volume Claims
 	The ‘webapp’ pod stores logs at /log/app.log.  View the logs
 	SOLUTION:  kubectl exec webapp -- cat /log/app.log
+	DOC: https://kubernetes.io/docs/tasks/debug/debug-application/get-shell-running-container/#running-individual-commands-in-a-container
+	DOC PATH: tasks -> Monitoring, Logging, and Debugging -> Troubleshooting Applications -> Get a Shell to a Running Container
+	
 	
 	Configure a volume to store these logs at /var/log/webapp on the host.
 	Name: webapp
@@ -965,6 +1055,8 @@ Persistent Volume Claims
 	Volume HostPath: /var/log/webapp
 	Volume Mount: /log
 	SOLUTION: Delete the pod and recreate it.  Create a YAML
+	DOC: https://kubernetes.io/docs/concepts/storage/volumes/#hostpath-volume-types
+	DOC PATH: Concepts -> Storage -> Volumes
 	YAML:
 		apiVersion: v1
 		kind: Pod
@@ -997,6 +1089,10 @@ Persistent Volume Claims
 	Host Path: /pv/log
 	Reclaim Policy: Retain
 	SOLUTION:  Create a YAML
+	DOC: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolume
+	DOC PATH: Tasks -> Configure Pods and Containers -> Configure a Pod to Use a PersistentVolume for Storage
+	DOC: https://kubernetes.io/docs/concepts/storage/persistent-volumes/
+	DOC PATH: Concepts -> Storage -> Persistent Volumes
 	YAML:
 		apiVersion: v1
 		kind: PersistentVolume
@@ -1011,11 +1107,16 @@ Persistent Volume Claims
   		  hostPath:
     		 path: /pv/log
     		 
+			 
 	Let us claim some of that storage for our application.  Create a PVC with the given specs
 	Volume Name: claim-log-1
 	Storage Request: 50Mi
 	Access Modes: ReadWriteMany
 	SOLUTION: Create a YAML
+	DOC: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolume
+	DOC PATH: Tasks -> Configure Pods and Containers -> Configure a Pod to Use a PersistentVolume for Storage
+	DOC: https://kubernetes.io/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims
+	DOC PATH: DOC PATH: Concepts -> Storage -> Persistent Volumes
 	YAML:
 		kind: PersistentVolumeClaim
 		apiVersion: v1
@@ -1034,6 +1135,8 @@ Persistent Volume Claims
 	Volume: PersistentVolumeClaim=claim-log-1
 	Volume Mount: /log
 	SOLUTION:  Replace hostPath configured with a new created PersistentVolumeClaim.  You can create a new YAML with this solution
+	DOC: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-pod
+	DOC PATH: Tasks -> Configure Pods and Containers -> Configure a Pod to Use a PersistentVolume for Storage
 	YAML:
 		apiVersion: v1
 		kind: Pod
@@ -1063,6 +1166,10 @@ Storage Class
 	Correct StorageClass Used?
 	PVC requests volume size = 500Mi?
 	SOLUTION: Create a YAML
+	DOC: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolume
+	DOC PATH: Tasks -> Configure Pods and Containers -> Configure a Pod to Use a PersistentVolume for Storage
+	DOC: https://kubernetes.io/docs/concepts/storage/storage-classes/
+	DOC PATH: Concepts -> Storage -> Storage Classes
 	YAML:
 		---
 		kind: PersistentVolumeClaim
@@ -1080,6 +1187,8 @@ Storage Class
 
 	Create a new pod called nginx with the image nginx:alpine.  The Pod should make use of the PVC ‘local-pvc’ and mount the volume at the path /var/www/html.
 	SOLUTION:  Create a YAML
+	DOC: https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-pod
+	DOC PATH: Tasks -> Configure Pods and Containers -> Configure a Pod to Use a PersistentVolume for Storage
 	YAML:
 		---
 		apiVersion: v1
@@ -1105,6 +1214,8 @@ Storage Class
 	provisioner: kubernetes.io/no-provisioner
 	volumeBindingMode: WaitForFirstConsumer
 	SOLUTION: Create a YAML
+	DOC: https://kubernetes.io/docs/concepts/storage/storage-classes/#local
+	DOC PATH: Concepts -> Storage -> Storage Classes
 	YAML:
 		---
 		apiVersion: storage.k8s.io/v1
@@ -1129,18 +1240,26 @@ CNI
 	
 	What is the path configured with all binaries of CNI supported plugins
 	SOLUTION: The binaries are in /opt/cni/bin by default
+	DOC: https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/#support-traffic-shaping
+	DOC PATH: Concepts -> Extending Kubernetes -> Compute, Storage, and Networking Extentions -> Network Plugins
 	
 	What is the CNI Plugin configured to be used on this kubernetes cluster
 	SOLUTION: ls /etc/cni/net.d.  Identify the name of the plugin.
+	DOC: https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/#support-traffic-shaping
+	DOC PATH: Concepts -> Extending Kubernetes -> Compute, Storage, and Networking Extentions -> Network Plugins
 
 Deploy Network Solution
 	Deploy weave-net networking solution to the cluster.  The manifest yaml is in /root/weave
 	SOLUTION:  kubectl apply -f weave-daemonset-k8s.yaml (this is in /root/weave)
+	DOC: https://kubernetes.io/docs/concepts/cluster-administration/addons/
+	DOC PATH: Concepts -> Cluster Administration -> Installing Addons
 	
 	
 Networking Weave
 	What is the networking solution used by this cluster?
 	SOLUTION: Check the config (/etc/cni/net.d)
+	DOC: https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/#support-traffic-shaping
+	DOC PATH: Concepts -> Extending Kubernetes -> Compute, Storage, and Networking Extentions -> Network Plugins
 
 	What is the POD IP address range configured by ‘weave’?
 	SOLUTION: ip addr show weave
@@ -1156,9 +1275,12 @@ Service Networking
 
 CoreDNS in Kubernetes
 	Where is the configuration file located for configuring the CoreDNS service?
-	SOLUTION: kubectl -n kube-system describe deployments.apps coredns | grep -A2 Args | grep Corefile	
+	SOLUTION: kubectl -n kube-system describe deployments.apps coredns | grep -A2 Args | grep Corefile
+	
 	How is the Corefile passed into the CoreDNS POD?
 	SOLUTION: kubectl get cm -n kube-system
+	DOC: https://kubernetes.io/docs/concepts/configuration/configmap/#using-configmaps
+	DOC PATH: Concepts -> Configuration -> ConfigMaps
 	
 	What is the root domain/zone configured for this kubernetes cluster?
 	SOLUTION: kubectl describe configmap coredns -n kube-system
@@ -1172,6 +1294,9 @@ CoreDNS in Kubernetes
 	
 	From the ‘hr’ pod ‘nslookup’ the ‘mysql’ service and redirect the output to a file ‘/root/CKA/nslookup.out’
 	SOLUTION: kubectl exec -it hr -- nslookup mysql.payroll > /root/CKA/nslookup.out
+	DOC: https://kubernetes.io/docs/tasks/debug/debug-application/get-shell-running-container/#running-individual-commands-in-a-container
+	DOC PATH: tasks -> Monitoring, Logging, and Debugging -> Troubleshooting Applications -> Get a Shell to a Running Container
+	
 
 
 CKA - Ingress Networking - 1
@@ -1184,6 +1309,8 @@ CKA - Ingress Networking - 1
 	Configure correct backend service
 	Configure correct backend port
 	SOLUTION: Usually you’d edit the ingress-wear-watch resource.  But this is in a different namespace.  Create a new YAML for an ingress resource
+	DOC: https://kubernetes.io/docs/concepts/services-networking/ingress/#the-ingress-resource
+	DOC PATH: Concepts -> Services, Load Balancing, and Networking -> Ingress
 	YAML:
 		---
 		apiVersion: networking.k8s.io/v1
@@ -1208,7 +1335,7 @@ CKA - Ingress Networking - 1
 		
 
 CKA - Ingress Networking - 2
-	LOOK AT INGRESS CONTROLLER CREATION
+	***LOOK AT INGRESS CONTROLLER CREATION***
 	
 	Create the ingress resource to make the applications available at /wear and /watch on the Ingress service.  Also, make use of the ‘rewrite-target’ annotation field - ‘nginx.ingress.kubernetes.io/rewrite-target: /‘
 	Ingress Created
@@ -1219,6 +1346,8 @@ CKA - Ingress Networking - 2
 	Configure correct backend port for /wear service
 	Configure correct backend port for /watch service
 	SOLUTION: Create a YAML
+	DOC: https://kubernetes.io/docs/concepts/services-networking/ingress/#the-ingress-resource
+	DOC PATH: Concepts -> Services, Load Balancing, and Networking -> Ingress
 	YAML:
 		---
 		apiVersion: networking.k8s.io/v1
@@ -1250,13 +1379,20 @@ CKA - Ingress Networking - 2
 
 ------------------
 DESIGN AND INSTALL A KUBERNETES CLUSTER
+DOC: https://kubernetes.io/docs/setup/production-environment/
+DOC PATH: Getting Started -> Production Environment
 
 -----------------
 INSTALL “KUBERNETES THE KUBEADM WAY”
 Deploy a Kubernetes Cluster Using Kubeadm
+DOC: https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/
+DOC PATH: Getting Started -> Production Environment -> Installing Kubernetes with deployment tools -> Bootstrapping clusters with kubeadm -> Creating a cluster with kubeadm
+
 -----------------
 TROUBLESHOOTING
 Application Failure
+DOC: https://kubernetes.io/docs/tasks/debug/debug-application/
+DOC PATH: Tasks -> Monitoring, Logging, and Debugging -> Troubleshooting Applications
 	LOOK AT PODS/ENV VARIABLES/SERVICES/LABELS/PORT NUMBERS.  MAKE SURE THEY ALL SYNC UP.
 	A simple tier 2 application is deployed in the ‘alpha’ namespace.  It must display a green web page on success.  You can see the failure on the web terminal.  Troubleshoot the issue.  The pod is mysql, the service is mysql-service, the deployment is webapp-mysql.  The web service is web-service.
 	SOLUTION:  You may notice getting services, kubectl get svc -n alpha.  There is only a ‘mysql’ service.  If you do a kubectl get deploy webapp-mysql -n alpha -o yaml, you’ll see the DB_HOST is mysql-service.  This should be corrected.  Delete the service ‘mysql’ and create a new service that shows ‘mysql-service’
@@ -1283,6 +1419,9 @@ Application Failure
 
 
 Control Plane Failure
+DOC: https://kubernetes.io/docs/tasks/debug/debug-cluster/
+DOC PATH: Tasks -> Monitoring, Logging, and Debugging -> Troubleshooting Clusters
+	
 	The cluster is broken.  We tried deploying an application but it’s not working.  Troubleshoot and fix.
 	SOLUTION:  You’ll notice the kube-scheduler pod is erroring out.  Under describe for the pod, you’ll see back-off restarting failed container kube-scheduler in pod.  Go to the manifests and make sure it looks ok.  Manifests -> /etc/kubernetes/manifests.  Check for typos
 	
@@ -1296,6 +1435,11 @@ Control Plane Failure
 	Look over hostpaths.  Make sure they look correct.  One has a ‘WRONG-PKI-DIRECTORY’ in it’s path.  Because this is a relicaset/deployment, check out the manifests yaml and change it from there.  This is the kube-controller manifest.
 
 Worker Node Failure
+DOC: https://kubernetes.io/docs/tasks/debug/debug-cluster/kubectl-node-debug/
+DOC PATH: Tasks -> Monitoring, Logging, and Debugging -> Troubleshooting Clusters -> Debugging Kubernetes Nodes with Kubectl
+DOC: https://kubernetes.io/docs/tasks/debug/debug-cluster/troubleshoot-kubectl/
+DOC PATH: Tasks -> Monitoring, Logging, and Debugging -> Troubleshooting Clusters -> Troubleshooting kubectl
+	
 	Fix the broken cluster
 	SOLUTION: Go to a failing node and check the status of kubectl.  Start it, if necessary.
 	
@@ -1314,6 +1458,9 @@ Troubleshoot Network
 -----------------
 OTHER TOPICS
 Advanced Kubectl Commands
+DOC: https://kubernetes.io/docs/reference/kubectl/jsonpath/
+DOC PATH: Reference -> Command line tool (kubectl) -> JSONPath Support
+
 	Get the list of nodes in JSON format and store it in a file at /opt/outputs/nodes.json
 	SOLUTION: kubectl get nodes -o json > /opt/outputs/nodes.json
 	
