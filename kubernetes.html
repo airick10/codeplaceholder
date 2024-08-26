@@ -1,0 +1,440 @@
+<html>
+<head>
+<script src="jquery-3.6.0.js"></script>
+<script>
+$(function(){
+  $("#header").load("header.html");
+});
+</script>
+
+<style>
+  .copy-icon {
+    cursor: pointer;
+    display: inline-block;
+    margin-left: 10px;
+  }
+  .codebox {
+    position: relative;
+  }
+  .copy-icon.copied {
+            background-color: #6a6a6a; /* Change background color when copied */
+        }
+</style>
+<script>
+    $(document).ready(function(){
+        $('.copy-icon').click(function(){
+            // Get the text specifically for copying
+            var textToCopy = $(this).closest('.codebox').data('copy-text');
+
+            // Create a temporary textarea element
+            var textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+
+            // Append the textarea to the body and select its content
+            document.body.appendChild(textarea);
+            textarea.select();
+
+            try {
+                // Copy the selected text to the clipboard
+                var successful = document.execCommand('copy');
+                if (successful) {
+                    // Add a class to the copy icon to indicate success
+                    $(this).addClass('copied');
+                    // Remove the class after a short delay
+                    setTimeout(() => {
+                        $(this).removeClass('copied');
+                    }, 100);
+                }
+            } catch (err) {
+                console.error('Unable to copy text: ', err);
+            }
+
+            // Remove the temporary textarea
+            document.body.removeChild(textarea);
+        });
+    });
+    </script>
+
+</head>
+<body>
+<div id="header"></div>
+<ui>
+<li><a href='https://kubernetes.io/docs/home/' target='new_window'>K8s Docs</a></li>
+<li><a href="kuberinstall.html" target="new_window">Install Link</a></li>
+<li><a href="kubernetescore.html" target="new_window">Kubernetes Core Ideas and uses</a></li>
+<li><a href="kubernetesimages.html" target="new_window">Using/Deploying Images - phpMyAdmin</a></li>
+<li><a href="gitkuber.html" target="new_window">Deploy from Git Repo</a></li>
+<li><a href="kubernetesupgrade.html" target="new_window">Upgrading the Cluster</a></li>
+<li><a href="kubernetescomp.html" target="new_window">Components</a></li>
+<li><a href="https://github.com/marcel-dempers/docker-development-youtube-series/tree/master/kubernetes/ingress/controller/nginx" target="new_window">Ingress Controller install - Git page.  Instructions work.</a></li>
+<li><a href="https://www.linuxtechi.com/configure-nfs-persistent-volume-kubernetes/" target="new_window">Setting up Persistant Storage</a></li>
+<li><a href="#fluentd">Fluentd yaml (Logging)</a></li>
+<li><a href="vault.html">HashiCorp Vault</a></li>
+<li><a href="https://kubernetes.io/docs/tasks/debug/" target="new_window">Debugging from K8s</a></li>
+</ui>
+<div class="mainbody kubernetes">
+	<p>
+<div class="section">
+	<div class="detailsbox">Deploying an app - Create a deployment on your master node.  This example is a sample used from kubernetes.io.
+    <br>
+  You can also add replicas, labels, and such,  --dry-run=client -o yaml will display a template yaml to edit, if you wish.
+<br>
+-- after the statement will give commands to the deployment (pods) after it's deployed.
+<br><a href='https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#-em-deployment-em-' target='new_window'>K8s Docs</a></div>
+	<div class="codebox" data-copy-text="kubectl create deployment busy --image=busybox --dry-run=client -o yaml &gt; yamlfile.yaml">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+	<pre>
+	<code>
+# kubectl create deployment kubernetes-bootcamp --image=gcr.io/google-samples/kubernetes-bootcamp:v1
+--See what deployments are ready--
+# kubectl get deployments
+
+--- Get a template YAML (Will not actually deploy) (CMD BTN) ---
+# kubectl create deployment busy --image=busybox --dry-run=client -o yaml &gt; yamlfile.yaml
+
+--- Commands ---
+# kubectl create deployment busy --image=busybox -- sleep 5000
+	</code>
+	</pre>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox">The kubectl command can create a proxy that will forward communications into the clusterwide private network.  This can be ran in a second terminal and left running hitting control-C to break it.  Setting this will provide a connection between the host and the cluster.  <b>It enables direct access to the API.</b>  To test, you can run a curl command.  The proxy creates the 8001 port and you can get a JSON output on the version of hte cluster.</div>
+	<div class="codebox" data-copy-text="kubectl proxy
+curl http://localhost:8001/version">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+	<pre>
+	<code>
+# kubectl proxy
+--------
+# curl http://localhost:8001/version
+	</code>
+	</pre>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox">The API Server will automatically create an endpoint for each Pod based on the Pod name, that is also accessible through the proxy.  First, we need to get the Pod name and we'll store in the environment variable POD_NAME.</div>
+	<div class="codebox" data-copy-text="export POD_NAME=$(kubectl get pods -o go-template --template '{{range .items}}{{.metadata.name}}{{&quot;\n&quot;}}{{end}}')">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+	<pre>
+	<code>
+# export POD_NAME=$(kubectl get pods -o go-template --template '{{range .items}}{{.metadata.name}}{{&quot;\n&quot;}}{{end}}')
+-----------
+# echo Name of the Pod: $POD_NAME
+	</code>
+	</pre>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox"><b>Exploring the app</b> - See what pods are available.
+  <br><a href='https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#get' target='new_window'>K8s Docs</a></div>
+	<div class="codebox" data-copy-text="kubectl get pods&quot;">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+	<pre>
+	<code>
+# kubectl get pods
+	</code>
+	</pre>
+	</div>
+
+</div>
+
+<div class="section">
+	<div class="detailsbox"><b>Exploring the app</b> - Logs for a particular pod.  This example uses the $POD_NAME name that was the path established from the example used.
+    <br><a href='https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#logs' target='new_window'>K8s Docs</a></div>
+	<div class="codebox" data-copy-text="kubectl logs $POD_NAME">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+	<pre>
+	<code>
+# kubectl logs $POD_NAME
+	</code>
+	</pre>
+	</div>
+</div>
+		
+<div class="section">
+	<div class="detailsbox"><b>Exposing the Service</b> - You can expose (create a service) for a deployment or a specific pod.  This creates a cluster service IP or you can make it available to the outside with a NodePort.  The first command will create a service based off the deployment and deployment name.  Port -> Port of the service.  TargetPort -> Port of the Pod
+    <br>
+  The second command creates a NodePort type.  The actual NodePort is automatically created.  You can edit the service after it's exposed for a specific NodePort.
+<br><a href='https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#expose' target='new_window'>K8s Docs</a></div>
+	<div class="codebox" data-copy-text="kubectl expose deployment PODNAME --type=NodePort --name=my-service">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# kubectl expose deployment $DEPLOY_NAME --port=80 --targetport=80 --name=my-service
+# kubectl expose deployment $DEPLOY_NAME --port=80 --targetport=80 --name=my-service --type=NodePort
+# kubectl expose pod_NAME $POD_NAME --port=80 --targetport=80
+</code>
+</pre>
+	</div>
+</div>
+		
+<div class="section">
+	<div class="detailsbox"><b>Exposing the Service</b> - From here, you can see what the exposed port is (32321) and access the site online at http://server:32321</div>
+	<div class="codebox">
+<pre>
+<code>
+<img src="images/kubersvc2.jpg" width=600px>
+</code>
+</pre>
+	</div>
+</div>		
+
+<div class="section">
+	<div class="detailsbox"><b>Exploring the app</b> - Once the Pod is running, we can execute commands directly on the container.  The exec command will list the environment variables.  The second line tends to work out pretty well too
+  <br><a href='https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#exec' target='new_window'>K8s Docs</a></div>
+	<div class="codebox" data-copy-text="kubectl exec $POD_NAME -- whoami
+kubectl exec --stdin --tty $POD_NAME -- /bin/bash">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+	<pre>
+	<code>
+# kubectl exec $POD_NAME -- whoami
+# kubectl exec --stdin --tty $POD_NAME -- /bin/bash
+	</code>
+	</pre>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox"><b>Exploring the app</b> - You can open up a console on the container itself.  For example, you can cat a .js file.  The third command is where you can check if the service is running.  With the first section, either or works.</div>
+	<div class="codebox" data-copy-text="kubectl exec -ti $POD_NAME -- bash
+kubectl exec --stdin --tty $POD_NAME -- /bin/bash">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+	<pre>
+	<code>
+# kubectl exec -ti $POD_NAME -- bash
+# kubectl exec --stdin --tty $POD_NAME -- /bin/bash
+-----------
+# cat server.js
+----------
+$ curl localhost:8080
+	</code>
+	</pre>
+	</div>
+</div>
+		
+<div class="section">
+	<div class="detailsbox"><b>Editing inside the container</b> - Most containers don't have vi, vim, or nano.  You can try installing vi or vim</div>
+	<div class="codebox" data-copy-text="apt-get install vim">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# apt-get install vim
+# yum install vim
+</code>
+</pre>
+	</div>
+</div>				
+		
+<div class="section">
+	<div class="detailsbox"><b>Editing inside the container</b> - One trick is to use cat with &gt;.  The idea is to cat a file.  Copy the code onto the clipboard.  Remove (or rename) the file.  Cat the file using &gt; and paste/edit the code back in.  Once you're done editing, hit ENTER and then CTRL-Z to save.</div>
+	<div class="codebox">
+<pre>
+<code>
+---See what we have below.  Copy the code in the terminal.  Get it on the clipboard.---
+# cat hello.php
+&lt;?php echo &quot;Hello World&quot;; ?&gt;
+
+---Remove or remane the file---
+# rm hello.php
+
+---Now cat the file again with &gt.---
+# cat &gt hello.php
+
+---It will be blank.  Paste or type in your corrections.  Hit ENTER once done.  Then hit CTRL-Z---
+&lt;?php echo &quot;Hello Eric!!!&quot;; ?&gt;
+</code>
+</pre>
+	</div>
+</div>		
+
+<hr>
+
+<div class="section" id="fluentd">
+	<div class="detailsbox"><b>Fluentd setup</b> - <a href='https://github.com/fluent/fluentd-kubernetes-daemonset/blob/master/fluentd-daemonset-forward.yaml' target='new_window'>GitHub Repo</a> - Here is a YAML for a generic setup for Fluentd.  Using fluent/fluentd-kubernetes-daemonset:v1.14-debian-forward-amd64-1 as a general setup. Update the namespace if you wish to use a different namespace.  <a href='http://rontoe.com/library/yaml/fluentd-general.yml'>YAML FILE</a></div>
+	<div class="codebox" data-copy-text="apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentd
+  namespace: kube-system
+  labels:
+    k8s-app: fluentd-logging
+    version: v1
+spec:
+  selector:
+    matchLabels:
+      k8s-app: fluentd-logging
+      version: v1
+  template:
+    metadata:
+      labels:
+        k8s-app: fluentd-logging
+        version: v1
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      containers:
+      - name: fluentd
+        image: fluent/fluentd-kubernetes-daemonset:v1.14-debian-forward-amd64-1
+        resources:
+          limits:
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+        # When actual pod logs in /var/lib/docker/containers, the following lines should be used.
+        # - name: dockercontainerlogdirectory
+        #   mountPath: /var/lib/docker/containers
+        #   readOnly: true
+        # When actual pod logs in /var/log/pods, the following lines should be used.
+        - name: dockercontainerlogdirectory
+          mountPath: /var/log/pods
+          readOnly: true
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: varlog
+        hostPath:
+          path: /var/log
+      # When actual pod logs in /var/lib/docker/containers, the following lines should be used.
+      # - name: dockercontainerlogdirectory
+      #   hostPath:
+      #     path: /var/lib/docker/containers
+      # When actual pod logs in /var/log/pods, the following lines should be used.
+      - name: dockercontainerlogdirectory
+        hostPath:
+          path: /var/log/pods">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluentd
+  namespace: kube-system
+  labels:
+    k8s-app: fluentd-logging
+    version: v1
+spec:
+  selector:
+    matchLabels:
+      k8s-app: fluentd-logging
+      version: v1
+  template:
+    metadata:
+      labels:
+        k8s-app: fluentd-logging
+        version: v1
+    spec:
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      containers:
+      - name: fluentd
+        image: fluent/fluentd-kubernetes-daemonset:v1.14-debian-forward-amd64-1
+        resources:
+          limits:
+            memory: 200Mi
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+        # When actual pod logs in /var/lib/docker/containers, the following lines should be used.
+        # - name: dockercontainerlogdirectory
+        #   mountPath: /var/lib/docker/containers
+        #   readOnly: true
+        # When actual pod logs in /var/log/pods, the following lines should be used.
+        - name: dockercontainerlogdirectory
+          mountPath: /var/log/pods
+          readOnly: true
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: varlog
+        hostPath:
+          path: /var/log
+      # When actual pod logs in /var/lib/docker/containers, the following lines should be used.
+      # - name: dockercontainerlogdirectory
+      #   hostPath:
+      #     path: /var/lib/docker/containers
+      # When actual pod logs in /var/log/pods, the following lines should be used.
+      - name: dockercontainerlogdirectory
+        hostPath:
+          path: /var/log/pods
+</code>
+</pre>
+	</div>
+</div>	
+
+<div class="section" id="fluentd">
+	<div class="detailsbox"><b>Fluentd setup</b> - You should grant the necessary RBAC permissions to the service account used by Fluentd. You can do this by creating a ClusterRoleBinding or a RoleBinding with the appropriate permissions.<a href='http://rontoe.com/library/yaml/fluentd-cluster-role.yml'>YAML (Cluster Role)</a> - <a href='http://rontoe.com/library/yaml/fluentd-role-binding.yml'>YAML (Role Binding)</a></div>
+	<div class="codebox" data-copy-text="apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fluentd-pods-reader
+rules:
+- apiGroups: [&quot;&quot;]
+  resources: [&quot;pods&quot;]
+  verbs: [&quot;get&quot;, &quot;list&quot;, &quot;watch&quot;]
+
+--------------------------------------
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fluentd-pods-reader-binding
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: kube-system  # Update this namespace if your Fluentd is in a different namespace
+roleRef:
+  kind: ClusterRole
+  name: fluentd-pods-reader
+  apiGroup: rbac.authorization.k8s.io">
+<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: fluentd-pods-reader
+rules:
+- apiGroups: [&quot;&quot;]
+  resources: [&quot;pods&quot;]
+  verbs: [&quot;get&quot;, &quot;list&quot;, &quot;watch&quot;]
+
+--------------------------------------
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: fluentd-pods-reader-binding
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: kube-system  # Update this namespace if your Fluentd is in a different namespace
+roleRef:
+  kind: ClusterRole
+  name: fluentd-pods-reader
+  apiGroup: rbac.authorization.k8s.io
+
+</code>
+</pre>
+	</div>
+</div>	
+
+
+</div>
+</body>
+</html>
