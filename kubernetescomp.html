@@ -1,0 +1,967 @@
+<html>
+<head>
+<script src="jquery-3.6.0.js"></script>
+<script>
+$(function(){
+  $("#header").load("header.html");
+});
+</script>
+
+<style>
+  .copy-icon {
+    cursor: pointer;
+    display: inline-block;
+    margin-left: 10px;
+  }
+  .codebox {
+    position: relative;
+  }
+  .copy-icon.copied {
+            background-color: #6a6a6a; /* Change background color when copied */
+        }
+</style>
+<script>
+    $(document).ready(function(){
+        $('.copy-icon').click(function(){
+            // Get the text specifically for copying
+            var textToCopy = $(this).closest('.codebox').data('copy-text');
+
+            // Create a temporary textarea element
+            var textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+
+            // Append the textarea to the body and select its content
+            document.body.appendChild(textarea);
+            textarea.select();
+
+            try {
+                // Copy the selected text to the clipboard
+                var successful = document.execCommand('copy');
+                if (successful) {
+                    // Add a class to the copy icon to indicate success
+                    $(this).addClass('copied');
+                    // Remove the class after a short delay
+                    setTimeout(() => {
+                        $(this).removeClass('copied');
+                    }, 100);
+                }
+            } catch (err) {
+                console.error('Unable to copy text: ', err);
+            }
+
+            // Remove the temporary textarea
+            document.body.removeChild(textarea);
+        });
+    });
+    </script>
+
+</head>
+<body>
+<div id="header"></div>
+<ul>
+<li><a href='https://kubernetes.io/docs/home/' target='new_window'>K8s Docs</a></li>  
+<li><a href="https://www.tecmint.com/install-a-kubernetes-cluster-on-centos-8/" target="new_window">Install Link</a></li> 
+<li><a href="ingress.html" target="new_window">Ingress</a></li> 
+<li><a href="kubernetescore.php" target="new_window">Kubernetes Core Ideas and uses</a></li> 
+<li><a href="minikube.php" target="new_window">Install Minikube</a></li> 
+<li><a href="kubernetesupgrade.php" target="new_window">Upgrading the Cluster</a></li> 
+<li><a href="#multipods" target="new_window">Multi Container Pods</a></li> 
+<li><a href="#services" target="new_window">Services</a></li> 
+<li><a href="#env" target="new_window">Env Variables, ConfigMaps, & Secrets</a></li> 
+<li><a href="#storage" target="new_window">Persistent Storage</a></li> 
+
+</ul>
+<br>
+Key Components
+<div class="mainbody kubernetes">
+	<p>
+
+<div class="section" id="multipods">
+  <div class="detailsbox"><b>Intermediate Pods - Volumes with PVC</b> - This is a basic pod YAML, but adding a volume that attaches a persistant volume claim.  'volumes' is mounted at the same YAML level as containers as it's not part of the container itself.  However, volumeMounts IS the mounted directory connecting to the persistant volume claim.  The claim is data-pvc.  The name of the volume in this YAML is data-store as is the name of the volumeMount is data-store.  That is just a labeled ID.
+  <br>
+  <a href='https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-pod' target='new_window'>K8s Docs (very similar example)</a>
+</div>
+  <div class="codebox" data-copy-text="apiVersion: v1
+kind: Pod
+metadata:
+  name: gop-file-server
+spec: 
+  containers:
+  - name: gop-file-server
+    image: kodekloud/fileserver
+    volumeMounts:
+    - mountPath: /web
+      name: data-store  
+  volumes:
+  - name: data-store
+    persistentVolumeClaim:
+      claimName: data-pvc">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gop-file-server
+spec: 
+  containers:
+  - name: gop-file-server
+    image: kodekloud/fileserver
+    volumeMounts:
+    - mountPath: /web
+      name: data-store  
+  volumes:
+  - name: data-store
+    persistentVolumeClaim:
+      claimName: data-pvc
+</code>
+</pre>
+  </div>
+</div>
+
+<div class="section" id="multipods">
+  <div class="detailsbox"><b>Intermediate Pods - InitContainer with PVC</b> - This is similar to above, but now I have two containers.  They share the same volumeMount.  Notice there is only one volume outside of 'containers'.  jekyll-site is the persistant volume claim.  The name of the volume here is 'site'.  Both the initContianer (container running first) and the other container uses the same volume.
+  <br>
+  In the initContainer, you'll notice a command section.  These are commands to be ran when the container starts.  Here, it'd be 'jekyll new /site'.
+  <br>
+  <a href='https://kubernetes.io/docs/concepts/workloads/pods/init-containers/#init-containers-in-use' target='new_window'>K8s Docs (very similar example)</a>
+</div>
+  <div class="codebox" data-copy-text="apiVersion: v1
+kind: Pod
+metadata:
+  namespace: development
+  name: jekyll
+  labels:
+    run: jekyll
+spec: 
+  containers:
+  - name: jekyll
+    image: kodekloud/jekyll-serve
+    volumeMounts:
+    - mountPath: /site
+      name: site  
+  initContainers:
+  - name: copy-jekyll-site
+    image: kodekloud/jekyll
+    command: [ &quot;jekyll&quot;, &quot;new&quot;, &quot;/site&quot; ]
+    volumeMounts:
+    - mountPath: /site
+      name: site
+  volumes:
+  - name: site
+    persistentVolumeClaim:
+      claimName: jekyll-site">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: v1
+kind: Pod
+metadata:
+  namespace: development
+  name: jekyll
+  labels:
+    run: jekyll
+spec: 
+  containers:
+  - name: jekyll
+    image: kodekloud/jekyll-serve
+    volumeMounts:
+    - mountPath: /site
+      name: site  
+  initContainers:
+  - name: copy-jekyll-site
+    image: kodekloud/jekyll
+    command: [ &quot;jekyll&quot;, &quot;new&quot;, &quot;/site&quot; ]
+    volumeMounts:
+    - mountPath: /site
+      name: site
+  volumes:
+  - name: site
+    persistentVolumeClaim:
+      claimName: jekyll-site
+</code>
+</pre>
+  </div>
+</div>
+
+
+
+
+
+<div class="section" id="multipods">
+	<div class="detailsbox"><b>Multi Container Pods</b> - Very similar to above, without the volume.  You may need two services to work together in the same pod.  Such as a log agent and a web agent.  Multi Container pods are created together and destroyed together.  They share the same network and storage.
+	<br>Understand that the '-' under containers means that it's an array.  So you can set multiple images onto the same pod.
+  <br><a href="yaml/multicontainerpod.yml">YAML File</a>
+  <br>
+  <a href='https://kubernetes.io/docs/concepts/workloads/pods/sidecar-containers/#pod-sidecar-containers' target='new_window'>K8s Docs</a> - This shows a sidecar container, but works very similarly.  initContainer isn't required.  Just two containers works this way.
+</div>
+	<div class="codebox" data-copy-text="apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-webapp
+  labels:
+    name: simple-webapp
+spec:
+  containers:
+  - name: simple-webapp
+    image: simple-webapp
+    ports:
+      - containerPort: 8080
+  - name: log-agent
+    image: log-agent">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-webapp
+  labels:
+    name: simple-webapp
+spec:
+  containers:
+  - name: simple-webapp
+    image: simple-webapp
+    ports:
+      - containerPort: 8080
+  - name: log-agent
+    image: log-agent
+</code>
+</pre>
+	</div>
+</div>
+
+<hr>
+
+<div class="section" id="services">
+	<div class="detailsbox"><b>Services</b> - NodePort.  From the outside, it listens on the port on the node and forwards.  This YAML takes a Pod in a Node that uses port 80.  
+	<br>The TargetPort is the port the service is forwarding to (Port on the pod).  The Port is the port on the service.  The nodePort is the port the outside world will use.
+	<br>In this setup, The Pod or deployment (label: myapp) is using 10.244.0.2:80 in a Node (192.168.1.2).  The outside world will be able to connect (curl) to the Node/Cluster at 192.168.1.2:30008.
+  <br><a href="yaml/service-nodeport.yml">YAML File</a>
+  <br>
+  <a href='https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport' target='new_window'>K8s Docs</a>
+</div>
+	<div class="codebox" data-copy-text="apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-service
+
+spec:
+  type: NodePort
+  ports:
+  - targetPort: 80
+    port: 80
+    nodePort: 30008
+  selector:
+    app: myapp
+    type: front-end">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-service
+
+spec:
+  type: NodePort
+  ports:
+  - targetPort: 80
+    port: 80
+    nodePort: 30008
+  selector:
+    app: myapp
+    type: front-end
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox"><b>Services</b> - Load Balancer.  Used in cloud setups, but allows you to use a single IP for a group of Pods across your cluster.  Google, AWS, and cloud apps support this.
+	<br>This setup works much like the NodePort, where we are forwarding 30008 (which is accessable by the user) to the Port 80 for Pods.  Used in a multi-pod environment.
+  <br><a href="yaml/service-loadbalancer.yml">YAML File</a>
+  <br>
+  <a href='https://kubernetes.io/docs/concepts/services-networking/service/#loadbalancer' target='new_window'>K8s Docs</a>
+</div>
+	<div class="codebox" data-copy-text="apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-service
+
+spec:
+  type: LoadBalancer
+  ports:
+  - targetPort: 80
+    port: 80
+    nodePort: 30008
+  selector:
+    app: myapp
+    type: front-end">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-service
+
+spec:
+  type: LoadBalancer
+  ports:
+  - targetPort: 80
+    port: 80
+    nodePort: 30008
+  selector:
+    app: myapp
+    type: front-end
+</code>
+</pre>
+	</div>
+</div>
+
+
+<div class="section">
+	<div class="detailsbox"><b>Services</b> - Cluster IP.  Service creates a virtual IP inside the cluster for communication within the cluster.  It can help group pods together.  Allows front-end Pods and back-end Pods to access each other, for example.
+  <br><a href="yaml/service-clusterip.yml">YAML File</a>
+  <br>
+  <a href='https://kubernetes.io/docs/concepts/services-networking/service/#type-clusterip' target='new_window'>K8s Docs</a>
+</div>
+	<div class="codebox" data-copy-text="apiVersion: v1
+kind: Service
+metadata:
+  name: back-end
+
+spec:
+  type: ClusterIP
+  ports:
+  - targetPort: 80
+    port: 80
+  selector:
+    app: myapp
+    type: back-end">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+
+<pre>
+<code>
+apiVersion: v1
+kind: Service
+metadata:
+  name: back-end
+
+spec:
+  type: ClusterIP
+  ports:
+  - targetPort: 80
+    port: 80
+  selector:
+    app: myapp
+    type: back-end
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>Services</b> - You can also combine ports to open up for a particular service.
+  <br>The selector/app label is optional.  But an example.
+  <br>
+  <a href='https://kubernetes.io/docs/concepts/services-networking/service/' target='new_window'>K8s Docs</a>
+</div>
+  <div class="codebox" data-copy-text="apiVersion: v1
+kind: Service
+metadata:
+  name: ericapp
+spec:
+  selector:
+    app: ericapp-app
+  ports:
+    - protocol: TCP
+      targetPort: 4000
+      port: 8080
+      nodePort: 30097
+  type: NodePort">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: v1
+kind: Service
+metadata:
+  name: ericapp
+spec:
+  selector:
+    app: ericapp-app  # Replace with the label selector for your pods
+  ports:
+    - protocol: TCP
+      targetPort: 4000  # The port your application is listening on
+      port: 8080         # The port exposed by the Service within the cluster
+      nodePort: 30097    # The NodePort to access the Service from outside the cluster
+  type: NodePort         # Expose the Service on a NodePort
+</code>
+</pre>
+  </div>
+</div>
+
+<hr>
+
+<div class="section" id="env">
+	<div class="detailsbox"><b>Environment Variables</b> - Some pods may need variables set up for them inside the app, depending on how you wish to deploy it.  The name is the key.  Such as Key = App_Color and Value = Blue.  
+  <br><a href="yaml/envvariable-basicpod.yml">YAML File</a>
+</div>
+	<div class="codebox" data-copy-text="apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-webapp-color
+
+spec:
+  containers:
+  - name: simple-webapp-color
+    image: simple-webapp-color
+    ports:
+      - containerPort: 8080
+    env:
+      - name: APP_COLOR
+        value: blue
+      - name: APP_MODE
+        value: production">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-webapp-color
+
+spec:
+  containers:
+  - name: simple-webapp-color
+    image: simple-webapp-color
+    ports:
+      - containerPort: 8080
+    env:
+      - name: APP_COLOR
+        value: blue
+      - name: APP_MODE
+        value: production
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox"><b>ConfigMaps</b> - A ConfigMap can store environment variable data into a separate file and mapped to the Pod YAML.
+	<br>This shows the command to create a configmap.  app-config is the name of the configmap.  APP_COLOR is the key and Blue is the value.
+	<br>Another way is to create a file (app_config.properties) and use the data from there.
+  <br>
+  <a href='https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#-em-configmap-em-' target='new_window'>K8s Docs</a>
+</div>
+	<div class="codebox" data-copy-text="kubectl create configmap app-config --from-literal=APP_COLOR=blue --from-literal=APP_MODE=production">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# kubectl create configmap app-config --from-literal=APP_COLOR=blue --from-literal=APP_MODE=production
+
+OR
+
+# kubectl create configmap app-config --from-file=app_config.properties
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox"><b>ConfigMaps</b> - Another approach is to create a YAML with the data and just creating it as any other YAML.
+  <br><a href="yaml/configmap.yml">YAML File</a>
+  <br>
+  <a href='https://kubernetes.io/docs/concepts/configuration/configmap/#configmaps-and-pods' target='new_window'>K8s Docs</a>
+</div>
+	<div class="codebox" data-copy-text="apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+
+data:
+  APP_COLOR: blue
+  APP_MODE: production">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+---configmap.yaml (COPY BTN)---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+
+data:
+  APP_COLOR: blue
+  APP_MODE: production
+
+-----------------
+# kubectl create -f configmap.yaml
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox"><b>ConfigMaps into Pods</b> - Finally, you can inject this ConfigMap into the Pod YAML pointing to the envFrom section.
+	<br>The ConfigMap created from the command is named app-config.  This will import ALL keys from the configmap into the pod.
+  <br><a href="yaml/envvariable-configmap-basicpod.yml">YAML File</a> 
+  <br>
+<a href='https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#configure-all-key-value-pairs-in-a-configmap-as-container-environment-variables' target='new_window'>K8s Docs</a>
+  <p>
+  The YAML below will show importing from a configMap, but importing specific keys.  The same idea is there, but the syntax is a tad different.
+  
+  <br>
+  <a href='https://kubernetes.io/docs/concepts/configuration/configmap/#configmaps-and-pods' target='new_window'>K8s Docs</a>
+  
+</div>
+	<div class="codebox" data-copy-text="apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-webapp-color
+
+spec:
+  containers:
+  - name: simple-webapp-color
+    image: simple-webapp-color
+    ports:
+      - containerPort: 8080
+    envFrom:
+      - configMapRef:
+          name: app-config">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-webapp-color
+
+spec:
+  containers:
+  - name: simple-webapp-color
+    image: simple-webapp-color
+    ports:
+      - containerPort: 8080
+    envFrom:
+      - configMapRef:
+          name: app-config
+
+--- Using specific Key in ConfigMap ---
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-webapp-color
+
+spec:
+  containers:
+  - name: simple-webapp-color
+    image: simple-webapp-color
+    ports:
+      - containerPort: 8080
+    env:
+    - name: CONFIGMAP_USERNAME
+      valueFrom:
+        configMapKeyRef:
+          name: app-config
+          key: username
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox"><b>Secrets</b> - Used to store sensitive information.  They are stored in an encoded format.
+	<br>This shows the command to create a secret.  app-secret is the name of the secret. 
+  <br>
+  <a href='https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#-em-secret-generic-em-' target='new_window'>K8s Docs</a>
+</div>
+	<div class="codebox" data-copy-text="kubectl create secret generic app-secret --from-literal=DB_Host=mysqlhost --from-literal=DB_Password=p@ssw0rd">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# kubectl create secret generic app-secret --from-literal=DB_Host=mysqlhost --from-literal=DB_Password=p@ssw0rd
+
+OR
+
+# kubectl create secret generic app-secret --from-file=app_secret.properties
+</code>
+</pre>
+	</div>
+</div>
+
+
+<div class="section">
+	<div class="detailsbox"><b>Secrets</b> - Another approach is to create a YAML with the data and just creating it as any other YAML.
+	<br>However, you need to submit your data in an encoded format.  So you'll need to base64 the values first and use that.
+	<br>The first command is to encode the data.  Take that value and use that in your YAML.
+  <br><a href="yaml/secret.yml">YAML File</a>
+</div>
+	<div class="codebox" data-copy-text="apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secret
+
+data:
+  DB_Host: bXlzcWw=
+  DB_User: cm9vdA==
+  DB_Password: cGFzd3JK">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# echo -n 'mysqlhost' | base64
+
+---secret.yaml (COPY BTN)---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secret
+
+data:
+  DB_Host: bXlzcWw=
+  DB_User: cm9vdA==
+  DB_Password: cGFzd3JK
+
+-----------------
+# kubectl create -f secret.yaml
+</code>
+</pre>
+	</div>
+</div>
+
+
+<div class="section">
+	<div class="detailsbox"><b>Secrets</b> - You can see what secret you have, by doing kubectl get secrets or describe secrets.  But if you want to see what key/values you have with encoded data, use -o yaml. 
+	<br>If you want, you can decode the encoded data using the decode option.
+	<br><b>Note:</b> Secrets are encoded, NOT encrytped.  Do not share your secrets data in Git, for example.  They are easily encoded.  <a href="https://kubernetes.io/docs/tasks/administer-cluster/encrypt-data/" target="new_window">Note this link.</a>  It can help store this data through encryption in etcd.
+  <br>
+  <a href='https://kubernetes.io/docs/tasks/configmap-secret/managing-secret-using-kubectl/#decoding-secret' target='new_window'>K8s Docs</a>
+</div>
+	<div class="codebox" data-copy-text="kubectl get secrets app-secret -o yaml">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+# kubectl get secrets app-secret -o yaml
+
+# echo -n 'bXlzcWw=' | base64 --decode
+</code>
+</pre>
+	</div>
+</div>
+
+
+<div class="section">
+	<div class="detailsbox"><b>Secrets into Pods</b> - Finally, you can inject this Secrets into the Pod YAML pointing to the envFrom section.
+	<br>The Secret created from the command is named app-secret.  This will import ALL keys from the secret into the pod.
+  <br><a href="yaml/secrets-basicpod.yml">YAML File</a>
+  <br>
+  <a href='https://kubernetes.io/docs/tasks/inject-data-application/distribute-credentials-secure/#configure-all-key-value-pairs-in-a-secret-as-container-environment-variables' target='new_window'>K8s Docs</a>
+  <p>
+  The YAML below will show importing from a secret, but importing specific keys.  The same idea is there, but the syntax is a tad different.
+  
+  <br>
+  <a href='https://kubernetes.io/docs/tasks/inject-data-application/distribute-credentials-secure/#define-a-container-environment-variable-with-data-from-a-single-secret' target='new_window'>K8s Docs</a>
+</div>
+	<div class="codebox" data-copy-text="apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-webapp-color
+
+spec:
+  containers:
+  - name: simple-webapp-color
+    image: simple-webapp-color
+    ports:
+      - containerPort: 8080
+    envFrom:
+      - secretRef:
+          name: app-secret">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-webapp-color
+
+spec:
+  containers:
+  - name: simple-webapp-color
+    image: simple-webapp-color
+    ports:
+      - containerPort: 8080
+    envFrom:
+      - secretRef:
+          name: app-secret
+
+----------------------
+apiVersion: v1
+kind: Pod
+metadata:
+  name: simple-webapp-color
+
+spec:
+  containers:
+  - name: simple-webapp-color
+    image: simple-webapp-color
+    ports:
+      - containerPort: 8080
+    env:
+    - name: SECRET_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: backend-username
+
+</code>
+</pre>
+	</div>
+</div>
+
+<hr>
+
+<div class="section" id="storage">
+	<div class="detailsbox"><b>Storage: Volumes</b> - We can store data into a volume so that when the pod gets destroyed, the data is stored somewhere. 
+	<br>This example uses a directory on the host itself.  Once created, we mount the data to the directory on the host.  When the pod gets deleted, the data remains.
+	<br>Here, the /opt directory in the Pod is mounted with the /data directory on the host.  Note the name of the mount is the name of the volume.
+	<br>Also, depending on your storage solution, storing on the actual host isn't always the best idea.  The 'hostPath' entry in volumes may change if you decide to use AWS, Google, NFS, whatever...
+  <br><a href="yaml/storage-volume.yml">YAML File</a>
+  <br>
+  <a href='https://kubernetes.io/docs/concepts/storage/volumes/#hostpath-configuration-example' target='new_window'>K8s Docs</a>
+</div>
+	<div class="codebox" data-copy-text="apiVersion: v1
+kind: Pod
+metadata:
+  name: testapp
+
+spec:
+  containers:
+  - image: alpine
+    name: alpine
+    volumeMounts:
+    - mountPath: /opt
+      name: data-volume
+
+  volumes:
+  - name: data-volume
+    hostPath:
+      path: /data
+      type: Directory">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: v1
+kind: Pod
+metadata:
+  name: testapp
+
+spec:
+  containers:
+  - image: alpine
+    name: alpine
+    volumeMounts:
+    - mountPath: /opt
+      name: data-volume
+
+  volumes:
+  - name: data-volume
+    hostPath:
+      path: /data
+      type: Directory
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox"><b>Storage: Persistant Volumes</b> - Large pool of storage and have users carve out storage from that. 
+	<br>Access Modes have three options: ReadOnlyMany, ReadWriteOnce, ReadWriteMany.
+	<br><b>Note</b>: change the 'hostPath' to something that is more cloud storage like AWS, Google, NFS.  Documentation can be had.  hostPath is targeting the specific host, which probably shouldn't be what is needed.  Also, a storageClassName could be added, if you are using a storage class.
+  <br><a href="yaml/persistentvolume.yml">YAML File</a>
+  <br>
+  <a href='https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolume' target='new_window'>K8s Docs</a>
+</div>
+	<div class="codebox" data-copy-text="apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-vol1
+
+spec:
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 1Gi
+  hostPath:
+    path: /tmp/data">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-vol1
+
+spec:
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 1Gi
+  hostPath:
+    path: /tmp/data
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox"><b>Storage: Persistant Volume Claims in Pods</b> - This YAML shows using a PVC in a Pod definition file specifying the claim under persistentVolumeClaim section.  To attach this to a specific persistent volume, use 'volumeName'.
+	<br>The Pod is wanting the claim mounted for /var/www/html in the front-end app.  This is pointing the the PVC created just above.  Again, if you want to use a Storage Class, you can add a storageClassName entry there.
+  <br><a href="yaml/pvcpod.yml">YAML File</a>
+  <br>
+  <a href='https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim' target='new_window'>K8s Docs</a>
+</div>
+	<div class="codebox" data-copy-text="apiVersion: v1
+kind: Pod
+metadata:
+  name: testpod
+
+spec:
+  containers:
+  - name: myfrontend
+    image: nginx
+    volumeMounts:
+    - mountPath: &quot;/var/www/html&quot;
+      name: mypd
+  volumes:
+    - name: mypd
+    persistentVolumeClaim:
+      claimName: eric-pvc">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: v1
+kind: Pod
+metadata:
+  name: testpod
+
+spec:
+  containers:
+  - name: myfrontend
+    image: nginx
+    volumeMounts:
+    - mountPath: &quot;/var/www/html&quot;
+      name: mypd
+  volumes:
+    - name: mypd
+    persistentVolumeClaim:
+      claimName: eric-pvc
+
+--- Example below tied to the PV .yaml above ---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: eric-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  volumeName: pv-vol1
+
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>Storage: Persistant Volume Claims</b> - These help make the storage available for the node.  A PV can be created and ready for use.  The claim allows the pod to find the right PV and 'claim' it.  Every claim is <i>bound to a single</i> persistent volume.
+  <br>When the claim is created, kubernetes will look for the best PV.
+  <p>
+  <b>Note:</b> - If you are just using a local storage for your cluster, storageClassName should be 'local-storage'.
+  <br><a href="yaml/persistentvolumeclaim.yml">YAML File</a>
+  <br>
+  <a href='https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/#create-a-persistentvolumeclaim' target='new_window'>K8s Docs</a>
+</div>
+  <div class="codebox" data-copy-text="apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: myclaim
+
+spec:
+  accessModes:
+      - ReadWriteOnce
+  storageClassName: google-storage
+  resources:
+     requests:
+       storage: 500Mi
+  volumeName: pv-vol1">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+--Note: storageClassName is optional.  But use 'local-storage' if local--
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: myclaim
+
+spec:
+  accessModes:
+      - ReadWriteOnce
+  storageClassName: google-storage
+  resources:
+     requests:
+       storage: 500Mi
+  volumeName: pv-vol1
+</code>
+</pre>
+  </div>
+</div>
+
+<div class="section">
+	<div class="detailsbox"><b>Storage: Storage Classes</b> - Before you claim, you must provision storage.  Here, you can provision storage automatically with the claim.  You can define the cloud storage, for example, and attach it to the pod as it's created. These are storage classes.
+	<br>With this, I don't need the PV definition anymore.  For the PVC to use storage class, I must create a storage class name in the PVC definition.
+	<br><b>Note:</b> Each provisioner (Google, iSCSI, Amazon for example) has their own set up parameters.  You can set up the disk however you wish based off these.  Each provisioner has documentation on what these may be.  This is the whole point of a storage class, you can set the disks however you'd wish.
+  <br><a href="yaml/storageclass-google.yml">YAML File</a>
+  <br>
+  <a href='https://kubernetes.io/docs/concepts/storage/storage-classes/#storageclass-objects' target='new_window'>K8s Docs</a>
+</div>
+	<div class="codebox" data-copy-text="apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: google-storage
+
+provisioner: kubernetes.io/gce-pd
+
+parameters:
+  type: pd-standard
+  replication-type: none">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: google-storage
+
+provisioner: kubernetes.io/gce-pd
+
+parameters:
+  type: pd-standard
+  replication-type: none
+</code>
+</pre>
+	</div>
+</div>
+
+
+
+</div>
+</body>
+</head>
+</html>
