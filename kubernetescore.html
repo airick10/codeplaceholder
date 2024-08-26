@@ -1,0 +1,197 @@
+<html>
+<head>
+<script src="jquery-3.6.0.js"></script>
+<script>
+$(function(){
+  $("#header").load("header.html");
+});
+</script>
+
+<style>
+  .copy-icon {
+    cursor: pointer;
+    display: inline-block;
+    margin-left: 10px;
+  }
+  .codebox {
+    position: relative;
+  }
+  .copy-icon.copied {
+            background-color: #6a6a6a; /* Change background color when copied */
+        }
+</style>
+<script>
+    $(document).ready(function(){
+        $('.copy-icon').click(function(){
+            // Get the text specifically for copying
+            var textToCopy = $(this).closest('.codebox').data('copy-text');
+
+            // Create a temporary textarea element
+            var textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+
+            // Append the textarea to the body and select its content
+            document.body.appendChild(textarea);
+            textarea.select();
+
+            try {
+                // Copy the selected text to the clipboard
+                var successful = document.execCommand('copy');
+                if (successful) {
+                    // Add a class to the copy icon to indicate success
+                    $(this).addClass('copied');
+                    // Remove the class after a short delay
+                    setTimeout(() => {
+                        $(this).removeClass('copied');
+                    }, 100);
+                }
+            } catch (err) {
+                console.error('Unable to copy text: ', err);
+            }
+
+            // Remove the temporary textarea
+            document.body.removeChild(textarea);
+        });
+    });
+    </script>
+
+</head>
+<body>
+<div id="header"></div>
+<ui>
+<li><a href='https://kubernetes.io/docs/home/' target='new_window'>K8s Docs</a></li>
+<li><a href="kuberinstall.php" target="new_window">Install Link</a></li>
+<li><a href="kubernetesimages.php" target="new_window">Using/Deploying Images - phpMyAdmin</a></li>
+<li><a href="gitkuber.php" target="new_window">Deploy from Git Repo</a></li>
+<li><a href="kubernetesupgrade.php" target="new_window">Upgrading the Cluster</a></li>
+<li><a href="kubernetescomp.php" target="new_window">Components</a></li>
+<li><a href="https://kubernetes.io/docs/home/" target="new_window">Kubernetes Docs</a></li>
+</ui>
+<div class="mainbody kubernetes">
+	<p>
+<div class="section">
+	<div class="detailsbox"><b>YAML Format</b> - This is a basic Kubernetes YAML format.  These are the parent fields.  Children fields should all be indented the same.  Two spaces are better practice then tabs.  Children of children also should be indented.  You may see a '-', this indicates an array or list of items.  The '-' is at the same level of the parent.</div>
+	<div class="codebox" data-copy-text="apiVersion:
+kind:
+metaData:
+
+spec: ">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion:
+kind:
+metaData:
+  
+spec: 
+</code>
+</pre>
+</div>
+</div>		
+
+<div class="section">
+	<div class="detailsbox"><b>YAML Format</b> - Simple create pod YAML.  apiVersion is usually v1 or apps/v1 depending on the kind.  The kind will indicate what kind of object this is (Pod, Service, Deployment, ReplicaSet, whatever).  The metaData will provide the name of the object (Pod).  The spec is where most details come in.  Here, you'll see I'm generating just one container of nginx. The '-' indicates an array or list.  So I can have multiple containers in a pod.  I'm specifying the name of the container (inside the pod), the image I'm using (nginx:1.2.2 is the docker image and version).  nginx uses port 80, so I should indicate the port the container is using.</div>
+	<div class="codebox" data-copy-text="apiVersion: v1
+kind: Pod
+metaData:
+  name: testpod
+
+spec: 
+  containers:
+  - name: nginx
+    image: nginx:1.2.2
+    ports: 
+    - containerPort: 80">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+apiVersion: v1
+kind: Pod
+metaData:
+  name: testpod
+
+spec: 
+  containers:
+  - name: nginx
+    image: nginx:1.2.2
+    ports: 
+    - containerPort: 80
+</code>
+</pre>
+</div>
+</div>		
+
+<div class="section">
+	<div class="detailsbox"><b>Running an object from YAML file</b> - This can be done through any object, not just a pod.</div>
+	<div class="codebox" data-copy-text="kubectl apply -f testpod.yaml">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+--Creates the object.  The YAML kind is a Pod, so a Pod will be created based off this YAML--
+kubectl create -f testpod.yaml
+
+--More of a dynamic/smarter way.  Apply does the same thing, but knows if this object already exists, can update if this is edited to another version, etc..---
+kubectl apply -f testpod.yaml
+</code>
+</pre>
+</div>
+</div>		
+		
+<div class="section">
+	<div class="detailsbox"><b>Running a pod.</b>  Image is used to know what image to pull.  With docker, it's simply whatever the name of the image is.  Without docker, you'll need to provide a URL to the container image.</div>
+	<div class="codebox" data-copy-text="kubectl run testpod --image=nginx">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>	
+<code>
+--Docker (COPY BTN)--
+# kubectl run testpod --image=nginx
+		
+--Non Docker/provide address--
+# kubectl run testpod --image=gcr.io/google-samples/whatever-container:v1
+
+--See what pods are ready--
+# kubectl get pods
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox"><b>Editing a pod and changing the YAML on the fly.</b>  You can make a change to the Pod through it's YAML file.  However, the edited YAML is the one stored in kubernetes memory.  So if saved, it'll save a temporary YAML.  You can replace the active pod with that.</div>
+	<div class="codebox" data-copy-text="kubectl edit pod testpod">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+--Edit the POD.  Displays the YAML it used.  Use vi and save changes (COPY BTN)--
+# kubectl edit pod testpod
+
+--You may get a message saying a copy of your changes have been stored in a temporary directory.  Copy this directory and force the changed replacement--
+# kubectl replace --force -f /tmp/kubectl-edit-447583758.yaml
+</code>
+</pre>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox"><b>Viewing and outputting a Pod's YAML</b>  While you can edit on the fly, you can also output the YAML and edit that.  Then you can replace using that specific YAML file instead of the temporary.  The --dry-run=client switch will simulate running it.  This is useful to see what it was trying to run as far as the YAML goes.  This should also work with any object.</div>
+	<div class="codebox" data-copy-text="kubectl run pod testpod --dry-run=client -o yaml &gt; testpod.yaml">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+<pre>
+<code>
+--Output the pod YAML to a file.  Open to edit or evaluate (COPY BTN)--
+# kubectl run pod testpod --dry-run=client -o yaml &gt; testpod.yaml
+
+--You can use this YAML to replace the pod or delete and recreate--
+# kubectl replace --force -f testpod.yaml
+OR
+# kubectl apply -f testpod.yaml
+</code>
+</pre>
+	</div>
+</div>
+
+
+</div>
+</body>
+</head>
+</html>
