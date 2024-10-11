@@ -1,0 +1,693 @@
+<html>
+<head>
+<script src="jquery-3.6.0.js"></script>
+<script>
+$(function(){
+  $("#header").load("header.html");
+});
+</script>
+
+<style>
+  .copy-icon {
+    cursor: pointer;
+    display: inline-block;
+    margin-left: 10px;
+  }
+  .codebox {
+    position: relative;
+  }
+  .copy-icon.copied {
+            background-color: #6a6a6a; /* Change background color when copied */
+        }
+</style>
+<script>
+    $(document).ready(function(){
+        $('.copy-icon').click(function(){
+            // Get the text specifically for copying
+            var textToCopy = $(this).closest('.codebox').data('copy-text');
+
+            // Create a temporary textarea element
+            var textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+
+            // Append the textarea to the body and select its content
+            document.body.appendChild(textarea);
+            textarea.select();
+
+            try {
+                // Copy the selected text to the clipboard
+                var successful = document.execCommand('copy');
+                if (successful) {
+                    // Add a class to the copy icon to indicate success
+                    $(this).addClass('copied');
+                    // Remove the class after a short delay
+                    setTimeout(() => {
+                        $(this).removeClass('copied');
+                    }, 100);
+                }
+            } catch (err) {
+                console.error('Unable to copy text: ', err);
+            }
+
+            // Remove the temporary textarea
+            document.body.removeChild(textarea);
+        });
+    });
+    </script>
+
+</head>
+<body>
+<div id="header"></div>
+<ui>
+<li><a href="#linux">Build out Linux Hosts (Ubuntu)</a></li>
+<li><a href="#kubernetesprep">Prep for Kubernetes</a></li>
+<li><a href="#kubernetesinit">Kubernetes Install and config</a></li>
+<li><a href="#web">Web Deployment</a></li>
+<li><a href="#metallb">MetalLB - Load Balancing</a></li>
+<li><a href="#testing">Testing</a></li>
+<li><a href="#external">External Access Setup</a></li>
+</ui>
+
+As an example, using the following.  Hosts should have 1-2 CPU, 2-4GB of RAM, and 20+ GB of Disk.  Using Ubuntu.  Not installing any pre-packages with Ubuntu.
+<br>192.168.1.109 joker (Controlplane)
+<br>192.168.1.112 penguin
+<br>192.168.1.113 riddler
+<p>
+Used Hyper-V in this setup.  You can use whatever you want for the build out.
+
+<div class="mainbody kubernetes">
+	<p>
+<div class="section" id="linux">
+  <div class="detailsbox"><b>Hyper-V (Optional)</b> - Set up a new virtual switch in Hyper-V.  Set it to external and choose a NIC in Windows to use it with.  You don't need to worry about the VLAN ID.
+  <br>
+  It's also a good idea to turn off secure boot options in the Virtual Server's Hyper-V Settings.  This helps boot to the Ubuntu ISO.
+</div>
+  <div class="codebox" data-copy-text="vi /etc/netplan/&lt;NICADAPTER&gt;">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+
+  <code>
+&nbsp;
+  </code>
+  </div>
+</div>
+
+<hr>
+
+<div class="section" id="linux">
+	<div class="detailsbox"><b>Build out Linux (Ubuntu)</b> - If you install as DHCP and want to switch to static IP, go to /etc/netplan and look for the adapater.  Edit that.
+<br>
+-- The NIC settings should look something like this.  Using 192.168.1.10 as the host and 8.8.8.8 and 8.8.6.6 as DNS entries (Google).
+</div>
+	<div class="codebox" data-copy-text="vi /etc/netplan/&lt;NICADAPTER&gt;">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+	<pre>
+	<code>
+# vi /etc/netplan/&lt;NICADAPTER&gt;
+network:
+  version: 2
+  ethernets:
+  eth0:
+    dhcp4: false
+    addresses:
+      - 192.168.1.10/24
+    gateway4: 192.168.1.1
+    nameservers:
+      addresses:
+        - 8.8.8.8
+        - 8.8.4.4
+	</code>
+	</pre>
+	</div>
+</div>
+
+<div class="section">
+	<div class="detailsbox"><b>Build out Linux (Ubuntu)</b> DNS - Update /etc/hosts for the hosts as needed.  This is where a static IP can be preferred.
+  <br>
+  Also, ensure DNS nameservers are correct in /etc/resolv.conf.
+  <p>
+  Once done, restart networking
+  </div>
+	<div class="codebox" data-copy-text="sudo systemctl restart systemd-resolved">
+	<span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+	<pre>
+	<code>
+# vi /etc/hosts
+-----------------
+192.168.1.109 joker
+192.168.1.112 penguin
+192.168.1.113 riddler
+
+# vi /etc/resolv.conf
+-----------------
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+nameserver 1.1.1.1
+
+--- Restart Networking (COPY BTN) ---
+# sudo systemctl restart systemd-resolved
+	</code>
+	</pre>
+	</div>
+</div>
+
+<hr>
+
+<div class="section" id="kubernetesprep">
+  <div class="detailsbox"><b>Prep for Kubernetes (ALL NODES)</b> If using virtual servers, they may have the same MAC address.  Check to see and make sure each node has a unique MAC.  You can try to set a MAC Address manually in the hypervisor (Hyper-V).  This command should show you the virtual server's MAC address.
+  </div>
+  <div class="codebox" data-copy-text="ip link show">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <pre>
+  <code>
+# ip link show
+  </code>
+  </pre>
+  </div>
+</div>
+
+
+<div class="section">
+  <div class="detailsbox"><b>Prep for Kubernetes</b> Disable Swap - The default behavior of kubelet is to fail to start if swap memory is detected on a node.  Do this by either running a temp command or edit /etc/fstab and comment any line related to 'swap'.  Reboot the server.
+  <br>
+  <a href='https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#swap-configuration' target='new_window'>Kubernetes Docs</a>
+  </div>
+  <div class="codebox" data-copy-text="sudo swapoff -a">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <pre>
+  <code>
+--- Temporary turn off swap ---
+# sudo swapoff -a
+
+--- Permanently, edit and comment out any lines related to 'swap' ---
+# vi /etc/fstab
+  </code>
+  </pre>
+  </div>
+</div>
+
+
+<div class="section">
+  <div class="detailsbox"><b>Prep for Kubernetes</b> Install Linux Packages (Ubuntu)- These packages are to be done early on as they are needed to securely add and communicate with external repositories, such as the Kubernetes APT repository
+
+  </div>
+  <div class="codebox" data-copy-text="sudo apt update
+sudo apt install -y apt-transport-https ca-certificates curl">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <pre>
+  <code>
+# sudo apt update
+# sudo apt install -y apt-transport-https ca-certificates curl
+  </code>
+  </pre>
+  </div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>Prep for Kubernetes</b> Load the Kernal Modules - Kubernetes relies on specific kernal modules.  Load these up and configure sysctl.  By running the commands modprobe overlay and modprobe br_netfilter, the necessary kernel modules are loaded into the kernel’s memory.
+  <p>
+  This command will append the following lines net.bridge.bridge-nf-call-ip6tables = 1, net.bridge.bridge-nf-call-iptables = 1, and net.ipv4.ip_forward = 1 to the /etc/sysctl.d/k8s.conf file.
+  </div>
+  <div class="codebox" data-copy-text="sudo modprobe overlay
+sudo modprobe br_netfilter
+echo &quot;overlay&quot; | sudo tee -a /etc/modules-load.d/k8s.conf
+echo &quot;br_netfilter&quot; | sudo tee -a /etc/modules-load.d/k8s.conf
+sudo tee /etc/sysctl.d/k8s.conf&lt;&lt;EOF
+net.bridge.bridge-nf-call-iptables = 1
+net.ipv4.ip_forward = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+EOF
+sudo sysctl --system">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <pre>
+  <code>
+# sudo modprobe overlay
+# sudo modprobe br_netfilter
+# echo &quot;overlay&quot; | sudo tee -a /etc/modules-load.d/k8s.conf
+# echo &quot;br_netfilter&quot; | sudo tee -a /etc/modules-load.d/k8s.conf
+# sudo tee /etc/sysctl.d/k8s.conf&lt;&lt;EOF
+  net.bridge.bridge-nf-call-iptables = 1
+  net.ipv4.ip_forward = 1
+  net.bridge.bridge-nf-call-ip6tables = 1
+  EOF
+# sudo sysctl --system
+  </code>
+  </pre>
+  </div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>Prep for Kubernetes</b> Install Containerd - Ensure the IPv4 packet forwarding it setup.
+  </div>
+  <div class="codebox" data-copy-text="cat &lt;&lt;EOF | sudo tee /etc/sysctl.d/k8s.conf
+  net.ipv4.ip_forward = 1
+  EOF">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <pre>
+  <code>
+# cat &lt;&lt;EOF | sudo tee /etc/sysctl.d/k8s.conf
+  net.ipv4.ip_forward = 1
+  EOF
+  </code>
+  </pre>
+  </div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>Prep for Kubernetes</b> Install Containerd - Commands to install Containerd
+  <br>
+  <a href='https://kubernetes.io/docs/setup/production-environment/container-runtimes/#containerd' target='new_window'>Kubernetes Docs</a> - A bit complex here.  These commands worked well for me in Ubuntu.
+  </div>
+  <div class="codebox" data-copy-text="sudo apt install -y containerd
+  sudo mkdir -p /etc/containerd
+  sudo containerd config default | sudo tee /etc/containerd/config.toml
+  sudo systemctl restart containerd">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <pre>
+  <code>
+# sudo apt install -y containerd
+# sudo mkdir -p /etc/containerd
+# sudo containerd config default | sudo tee /etc/containerd/config.toml
+# sudo systemctl restart containerd
+  </code>
+  </pre>
+  </div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>Prep for Kubernetes</b> Add the Kubernetes Repository - Add the google cloud public signing key.  This repo is used for kubernetes v1.30+.  Make sure the directory you have here matches the version you want.  Here it's using v1.30.
+  <br>
+  <a href='https://kubernetes.io/blog/2023/08/15/pkgs-k8s-io-introduction/' target='new_window'>Kubernetes Docs</a> - Shows new key and repo to add
+  </div>
+  <div class="codebox" data-copy-text="sudo mkdir -p /etc/apt/keyrings
+  echo &quot;deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /&quot; | sudo tee /etc/apt/sources.list.d/kubernetes.list
+  curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <pre>
+  <code>
+# sudo mkdir -p /etc/apt/keyrings
+# echo &quot;deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.30/deb/ /&quot; | sudo tee /etc/apt/sources.list.d/kubernetes.list
+# curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.30/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  </code>
+  </pre>
+  </div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>Prep for Kubernetes</b> Install Kubernetes Components - This installs kubelet, kubeadm, and kubectl
+  <br>
+  <a href='https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/#installing-kubeadm-kubelet-and-kubectl' target='new_window'>Kubernetes Docs</a>
+  </div>
+  <div class="codebox" data-copy-text="sudo apt-get update
+  sudo apt-get install -y kubelet kubeadm kubectl">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <pre>
+  <code>
+# sudo apt-get update
+# sudo apt-get install -y kubelet kubeadm kubectl
+  </code>
+  </pre>
+  </div>
+</div>
+
+<hr>
+
+<div class="section" id="#kubernetesinit">
+  <div class="detailsbox"><b>Kubernetes Install and config (ONLY CONTROLPLANE)</b> Kubeadm Init - I will use weave as the pod network.  By default, weave uses 10.32.0.0/12.  So I'll use that as the pod-network-cidr.  The APIServer should be the main controlplane system, which is 192.168.1.109 (joker).  There are other options to explore, but this is basic and works.
+  <br>
+  Note the token generated at the end.  Copy this.  This will be key to joining the other nodes to the cluster, when ready.
+  <br>
+  <a href='https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/#initializing-your-control-plane-node' target='new_window'>Kubernetes Docs</a>
+  </div>
+  <div class="codebox" data-copy-text="sudo kubeadm init --pod-network-cidr=10.32.0.0/12 --apiserver-advertise-address=192.168.1.109">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <pre>
+  <code>
+# sudo kubeadm init --pod-network-cidr=10.32.0.0/12 --apiserver-advertise-address=192.168.1.109
+  </code>
+  </pre>
+  </div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>Kubernetes Install and config</b> Configure the kubectl for the controlplane node.  When init completes, set up kubectl to manage the cluster.
+  <br>
+  <a href='https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/#more-information' target='new_window'>Kubernetes Docs</a>
+  </div>
+  <div class="codebox" data-copy-text="mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <pre>
+  <code>
+# mkdir -p $HOME/.kube
+# sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+# sudo chown $(id -u):$(id -g) $HOME/.kube/config
+  </code>
+  </pre>
+  </div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>Kubernetes Install and config</b> Install Weave
+  <br>
+  <a href='https://github.com/weaveworks/weave/blob/master/site/kubernetes/kube-addon.md#-installation'>Github Docs</a>
+  </div>
+  <div class="codebox" data-copy-text="kubectl apply -f https://github.com/weaveworks/weave/releases/download/v2.8.1/weave-daemonset-k8s.yaml">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <pre>
+  <code>
+# kubectl apply -f https://github.com/weaveworks/weave/releases/download/v2.8.1/weave-daemonset-k8s.yaml
+  </code>
+  </pre>
+  </div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>Kubernetes Install and config (OTHER NODES)</b> Join nodes via token - The token provided at the end of the init can now be applied and joined to the cluster.  The example here is just a notation.
+  </div>
+  <div class="codebox" data-copy-text="kubeadm join &lt;ip-address&gt;:6443\
+    --token=&lt;token-from-step-2&gt; \
+    --discovery-token-ca-cert-hash sha256:&lt;ca-hash-from-step-1&gt;">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <pre>
+  <code>
+# kubeadm join &lt;ip-address&gt;:6443\
+    --token=&lt;token-from-step-2&gt; \
+    --discovery-token-ca-cert-hash sha256:&lt;ca-hash-from-step-1&gt;
+
+  </code>
+  </pre>
+  </div>
+</div>
+
+<hr>
+
+<div class="section" id="web">
+  <div class="detailsbox"><b>Web Deployment</b> Simple nginx deployment.
+  </div>
+  <div class="codebox" data-copy-text="apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <pre>
+  <code>
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+  </code>
+  </pre>
+  </div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>Web Deployment</b> Service to expose this as a load balancer service
+  </div>
+  <div class="codebox" data-copy-text="apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  selector:
+    app: nginx
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  type: LoadBalancer">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <pre>
+  <code>
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+spec:
+  selector:
+    app: nginx
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  type: LoadBalancer
+  </code>
+  </pre>
+  </div>
+</div>
+
+<hr>
+
+<div class="section" id="metallb">
+  <div class="detailsbox"><b>MetalLB - Load Balancing</b> Since this is a local setup, Kubernetes can't use a cloud-based load balancer.  Instead, you can use MetalLB, which provides a load balancer for bare-metal (or virtualized in my local setup) Kubernetes cluster.
+  </div>
+  <div class="codebox" data-copy-text="kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.6/manifests/namespace.yaml
+  kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.6/manifests/metallb.yaml">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <pre>
+  <code>
+# kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.6/manifests/namespace.yaml
+# kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.6/manifests/metallb.yaml
+  </code>
+  </pre>
+  </div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>MetalLB - Load Balancing</b> Configmap - You can assign a specific IP or a range.  This can be important when it comes to external communication with port forwarding.  If I have an IP I want to use, most home routers won't allow a range, just a single IP to access from the outside.  But you can do a range if you have a router to handle that.
+  <br>
+  This setup does show a range.  It can be set for just a single static IP as well.
+  </div>
+  <div class="codebox" data-copy-text="apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: metallb-system
+  name: config
+data:
+  config: |
+    address-pools:
+    - name: default
+      protocol: layer2
+      addresses:
+      - 192.168.1.240-192.168.1.250">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <pre>
+  <code>
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: metallb-system
+  name: config
+data:
+  config: |
+    address-pools:
+    - name: default
+      protocol: layer2
+      addresses:
+      - 192.168.1.240-192.168.1.250
+  </code>
+  </pre>
+  </div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>MetalLB - Load Balancing</b> You might want to create a secret to complete the config.
+  </div>
+  <div class="codebox" data-copy-text="kubectl create secret generic memberlist \
+  -n metallb-system \
+  --from-literal=secretkey=&quot;$(openssl rand -base64 128)&quot;">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <pre>
+  <code>
+# kubectl create secret generic memberlist \
+  -n metallb-system \
+  --from-literal=secretkey=&quot;$(openssl rand -base64 128)&quot;
+  </code>
+  </pre>
+  </div>
+</div>
+
+<hr>
+
+<div class="section" id="testing">
+  <div class="detailsbox"><b>Testing</b> Now that you have the load balancing and deployments setup, you can make sure the pods are running.  Check the metallb-system namespace.  Look at the services as well.  You should see things running.
+  <br>
+  Perhaps images can't be pulled down and double check the image sources here.  But this should work.
+  <br>
+  Check the nginx service.  Hopefully, it now gives you an 'external IP'.  This is an internal IP, but it's an IP you can test.
+  </div>
+  <div class="codebox" data-copy-text="kubectl get all -A
+  kubectl get svc nginx-service">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <pre>
+  <code>
+# kubectl get all -A
+# kubectl get svc nginx-service
+  </code>
+  </pre>
+  </div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>Testing</b> You can use curl or go to a web browser and try to get to this IP.  Hopefully, you'll get a nginx welcome page.
+  </div>
+  <div class="codebox" data-copy-text="curl http://192.168.1.240">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <pre>
+  <code>
+# curl http://&lt;EXTERNAL_IP&gt;
+  </code>
+  </pre>
+  </div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>Testing</b> To test that load balancing is taking place, you can create another deployment for nginx and have it print out the pod it is using.  This way, you can refresh and see the name changes from time to time.  Good for testing.
+  </div>
+  <div class="codebox" data-copy-text="apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        command: [&quot;/bin/sh&quot;, &quot;-c&quot;]
+        args:
+        - &gt;
+          echo &quot;This is pod: $POD_NAME&quot; &gt; /usr/share/nginx/html/index.html && nginx -g 'daemon off;'
+        ports:
+        - containerPort: 80">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <pre>
+  <code>
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        command: [&quot;/bin/sh&quot;, &quot;-c&quot;]
+        args:
+        - &gt;
+          echo &quot;This is pod: $POD_NAME&quot; &gt; /usr/share/nginx/html/index.html && nginx -g 'daemon off;'
+        ports:
+        - containerPort: 80
+  </code>
+  </pre>
+  </div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>Testing</b> You can run through the web-app a few times and look at the logs.  It should help tell you which pod was selected.
+  </div>
+  <div class="codebox" data-copy-text="kubectl logs -l app=nginx">
+  <span class="copy-icon"><img src='images/copy_icon.png' height=25px></span>
+  <pre>
+  <code>
+# kubectl logs -l app=nginx
+  </code>
+  </pre>
+  </div>
+</div>
+
+<hr>
+
+<div class="section" id="external">
+  <div class="detailsbox"><b>External Access Setup </b> Using an IP like 192.168.1.240 is great as an internal network, but if I want it to be reachable external, I'd need to port forward from my router.  It can be a home or an enterprise router.
+  <br>
+  Log into the router and find the port forwarding section.  Set up the external port to expose (such as port 80).  Forward the internal IP of your Metallb service on port 80, such as 192.168.1.240 on port 80.
+  </div>
+  <div class="codebox">
+  <pre>
+  <code>
+- External Port: 80
+- Internal IP: 192.168.1.240
+- Internal Port: 80
+- Protocol: TCP
+  </code>
+  </pre>
+  </div>
+</div>
+
+<div class="section">
+  <div class="detailsbox"><b>External Access Setup </b> While port forwarding through your router will help, DNS still needs to be applied.  If I want to use a domain like 'domain.com' to point to 192.168.1.240, I'd have to port forward my external IP (router) with this IP on port 80.
+  <br>
+  For DNS, you can use a <b>Dyanmic DNS</b> service like <a href='https://www.noip.com' target='new_window'>No-IP</a> or <a href='https://www.duckdns.org/' target='new_window'>DuckDNS</a> for dynamic DNS.  When the external (home router) IP changes, the DNS changes.  This mixed with port forwarding on the router will allow traffic from the outside.
+  </div>
+  <div class="codebox">
+  <pre>
+  <code>
+No-IP -> https://www.noip.com
+DuckDNS -> https://www.duckdns.org
+  </code>
+  </pre>
+  </div>
+</div>
+
+
+
+
+</div>
+</body>
+</html>
