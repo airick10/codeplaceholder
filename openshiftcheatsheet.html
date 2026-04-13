@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenShift Troubleshooting</title>
+<style>
+  :root {
+    --red: #ee0000;
+    --red-dark: #a30000;
+    --red-muted: #3a0000;
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #222222;
+    --border: #2e2e2e;
+    --text: #e8e8e8;
+    --text-muted: #999;
+    --code-bg: #141414;
+    --code-border: #2a2a2a;
+    --accent: #ff4444;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+  .site-header {
+    background: linear-gradient(135deg, #1a0000 0%, #2a0000 50%, #1a0000 100%);
+    border-bottom: 2px solid var(--red);
+    padding: 28px 40px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .site-header .logo { font-size: 2rem; }
+  .site-header h1 { font-size: 1.6rem; font-weight: 700; color: #fff; letter-spacing: 0.02em; }
+  .site-header p { color: #cc8888; font-size: 0.85rem; margin-top: 2px; }
+  .toc { background: var(--surface); border-bottom: 1px solid var(--border); padding: 20px 40px; }
+  .toc h2 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--red); margin-bottom: 12px; font-weight: 600; }
+  .toc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 6px 24px; }
+  .toc-grid a {
+    color: #ccc; text-decoration: none; font-size: 0.875rem; padding: 4px 0;
+    border-bottom: 1px solid transparent; transition: color 0.15s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .toc-grid a::before {
+    content: ''; display: inline-block; width: 6px; height: 6px;
+    background: var(--red); border-radius: 50%; flex-shrink: 0;
+  }
+  .toc-grid a:hover { color: var(--accent); }
+  .main { max-width: 1100px; margin: 0 auto; padding: 40px 40px 80px; }
+  .section {
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 4px solid var(--red); border-radius: 6px;
+    padding: 32px 36px; margin-bottom: 32px; scroll-margin-top: 20px;
+  }
+  .section-title {
+    display: flex; align-items: flex-start; gap: 12px;
+    margin-bottom: 16px;
+  }
+  .section-title .icon { font-size: 1.2rem; margin-top: 4px; flex-shrink: 0; }
+  .section-title .title-block { display: flex; flex-direction: column; gap: 4px; }
+  .section-title h4 { font-size: 1.05rem; font-weight: 700; color: #fff; line-height: 1.3; }
+  .section-title .question { font-size: 0.85rem; font-style: italic; color: #aa8888; font-weight: 400; line-height: 1.5; }
+  .section > p, .section > .intro { color: #bbb; margin-bottom: 16px; }
+  .subsection {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 4px; padding: 20px 24px; margin: 20px 0;
+  }
+  .subsection h3 {
+    font-size: 0.95rem; font-weight: 600; color: #ddd;
+    margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  .cmd {
+    background: var(--code-bg); border: 1px solid var(--code-border); border-radius: 4px;
+    padding: 10px 40px 10px 14px; margin: 8px 0;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.82rem; font-weight: 700; color: #c8f0c0;
+    white-space: pre-wrap; word-break: break-all; position: relative;
+  }
+  .cmd-wrap { position: relative; display: block; }
+  .copy-btn {
+    position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
+    background: #2a2a2a; border: 1px solid #444; border-radius: 3px;
+    color: #aaa; cursor: pointer; font-size: 0.7rem; padding: 3px 7px;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap; font-family: 'Segoe UI', system-ui, sans-serif; z-index: 1;
+  }
+  .copy-btn:hover { background: #3a3a3a; color: #fff; border-color: #666; }
+  .copy-btn.copied { background: #1a3a1a; color: #80e080; border-color: #2a6a2a; }
+  .cmd-group { margin: 12px 0; }
+  .cmd-label { font-size: 0.78rem; color: var(--text-muted); margin-top: 10px; margin-bottom: 3px; font-style: italic; }
+  .yaml-block {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 4px;
+    padding: 14px 18px; margin: 12px 0;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.8rem; color: #adbac7; white-space: pre; overflow-x: auto;
+  }
+  .note {
+    background: #1a1500; border: 1px solid #554400; border-left: 3px solid #aa8800;
+    border-radius: 4px; padding: 10px 14px; margin: 12px 0; font-size: 0.85rem; color: #ccb060;
+  }
+  .note strong { color: #ddcc80; }
+  ul.check-list { list-style: none; padding: 0; margin: 8px 0; }
+  ul.check-list li {
+    padding: 5px 0 5px 22px; position: relative; color: #bbb;
+    font-size: 0.9rem; border-bottom: 1px solid #1e1e1e;
+  }
+  ul.check-list li:last-child { border-bottom: none; }
+  ul.check-list li::before { content: '▸'; position: absolute; left: 0; color: var(--red); font-size: 0.8rem; top: 6px; }
+  ul.check-list li b { color: #e0e0e0; }
+  a { color: #7ab4f5; text-decoration: none; }
+  a:hover { text-decoration: underline; color: #a0c8ff; }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 8px 0 16px; }
+  .warn-box {
+    background: #1a0000; border: 1px solid #660000; border-left: 3px solid var(--red);
+    border-radius: 4px; padding: 12px 16px; margin: 12px 0; font-size: 0.875rem; color: #ffaaaa;
+  }
+  .warn-box strong { color: #ff6666; }
+  .back-top { display: inline-block; font-size: 0.75rem; color: var(--text-muted); text-decoration: none; margin-top: 16px; float: right; }
+  .back-top:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="logo">🔴</div>
+  <div>
+    <h1>OpenShift Troubleshooting & Reference</h1>
+    <p>Personal cheat sheet — builds, deployments, upgrades, performance, security</p>
+    <p><a href='../'>Back to Home</a></p>
+  </div>
+</header>
+
+<nav class="toc" id="top">
+  <h2>Jump To Section</h2>
+  <div class="toc-grid">
+    <a href="#builds">Dockerfile / Build Strategies</a>
+    <a href="#crashloop">CrashLoopBackOff Triage</a>
+    <a href="#filetransfer">Large File Transfer (No rsync/tar)</a>
+    <a href="#mco">Machine Config Operator Degraded</a>
+    <a href="#security">Platform Security Controls</a>
+    <a href="#upgrade">Minor Version Upgrade</a>
+    <a href="#perf">Cluster Performance / Slowness</a>
+    <a href="#etcd">etcd High Latency & Leader Changes</a>
+    <a href="#notready">Worker Node NotReady</a>
+    <a href="#pvcpending">PVC Not Binding / Pod Pending</a>
+    <a href="#route">Route Created, External Access Broken</a>
+    <a href="#scheduling">Pod Won't Schedule — Resources Available</a>
+  </div>
+</nav>
+
+<main class="main">
+
+  <!-- SECTION 1: BUILDS -->
+  <div class="section" id="builds">
+    <div class="section-title">
+      <span class="icon">🏗️</span>
+      <div class="title-block">
+        <h4>Dockerfile / Build Strategies</h4>
+        <span class="question">You've got a developer repo with a Dockerfile. We want repeatable builds, promotion across dev→stage→prod, and we're in a semi-locked-down environment (internal registry, limited outbound). What deployment/build approach do you recommend in OpenShift and why?</span>
+      </div>
+    </div>
+    <p class="intro">Covers a handful of deployment approaches depending on where you're starting from.</p>
+
+    <div class="subsection">
+      <h3>You have a Docker container and want to deploy</h3>
+      <p class="cmd-label">Pull image as a deployment and create service</p>
+      <div class="cmd">oc new-app docker.io/emccumbe/testapp --name=testapp</div>
+      <p class="cmd-label">Create a route so you can hit the app</p>
+      <div class="cmd">oc expose svc testapp</div>
+      <div class="note"><strong>Note:</strong> OpenShift runs containers as non-root by default. If the container requires root, it won't work. You'll also want a pull secret for Docker Hub, or set this up via YAML.</div>
+    </div>
+
+    <div class="subsection">
+      <h3>Deploy as an ImageStream</h3>
+      <p style="color:#aaa; font-size:0.875rem; margin-bottom:12px;">An ImageStream tracks images/tags, whether built internally (BuildConfigs) or imported externally (DockerHub). Deployments can point at <code style="color:#c8f0c0; background:#111; padding:1px 5px; border-radius:3px;">myapp:latest</code> (ImageStreamTag) instead of hardcoding a registry path — so when a tag updates, the Deployment can pick it up automatically.</p>
+      <p class="cmd-label">Create a Docker Hub pull secret</p>
+      <div class="cmd">oc create secret docker-registry dockerhub-cred \
+  --docker-server=https://index.docker.io/v1/ \
+  --docker-username=USERNAME \
+  --docker-password='PASSWORD'</div>
+      <p class="cmd-label">Link secret to service accounts</p>
+      <div class="cmd">oc secrets link default dockerhub-cred --for=pull
+oc secrets link builder dockerhub-cred --for=pull</div>
+      <p class="cmd-label">Import the image as an ImageStream</p>
+      <div class="cmd">oc import-image myapp:latest -n NAMESPACE --from=docker.io/emccumbe/myapp:latest --confirm</div>
+      <p class="cmd-label">Deploy from the ImageStream and expose</p>
+      <div class="cmd">oc new-app -n NAMESPACE --name myapp --image-stream=myapp:latest -e PORT=8080
+oc expose svc/myapp --port=8080 --target-port=8080</div>
+    </div>
+
+    <div class="subsection">
+      <h3>You have a Git Repo — let OpenShift build it (S2I / BuildConfig)</h3>
+      <p style="color:#aaa; font-size:0.875rem; margin-bottom:12px;">A BuildConfig is a Source-to-Image (S2I) feature. OpenShift pulls your Git repo, layers source code onto a base builder image (Python, Node.js, PHP, etc.), and produces a runnable image tracked as an ImageStream.</p>
+      <p class="cmd-label">Create BuildConfig, ImageStream, Deployment, and Service in one shot</p>
+      <div class="cmd">oc new-app -n NAMESPACE --name=my-app \
+  --docker-image=registry.redhat.io/ubi9/php-82:latest \
+  --code=https://github.com/airick10/democode.git</div>
+      <div class="note"><strong>Note:</strong> Make sure you have a Red Hat registry or Docker Hub secret. Public Git repos don't require a secret.</div>
+      <hr class="divider">
+      <a href="openshiftbuild.html#buildconfigclimanual">→ Manual commands to build a BuildConfig to a Deployment</a><br>
+      <a href="openshiftbuild.html#buildconfiggui">→ Using YAML to build a BuildConfig and/or GUI</a>
+    </div>
+    <a class="back-top" href="#top">↑ Back to top</a>
+  </div>
+
+  <!-- SECTION 2: CRASHLOOP -->
+  <div class="section" id="crashloop">
+    <div class="section-title">
+      <span class="icon">💥</span>
+      <div class="title-block">
+        <h4>CrashLoopBackOff Triage</h4>
+        <span class="question">A pod is in CrashLoopBackOff. Walk me through your troubleshooting flow in the first 10 minutes. Assume you don't have cluster-admin.</span>
+      </div>
+    </div>
+    <p class="intro">You don't necessarily need cluster-admin for many of these, but it helps.</p>
+
+    <div class="cmd-group">
+      <p class="cmd-label">Check node placement and what's running</p>
+      <div class="cmd">oc get pods -o wide</div>
+      <p class="cmd-label">Look for events, image pull failures, mount errors, OOMKilled, probe failures</p>
+      <div class="cmd">oc describe pod &lt;PODNAME&gt;</div>
+      <p class="cmd-label">Check logs — use --previous for crash loops, --tail=20 for last 20 lines</p>
+      <div class="cmd">oc logs &lt;PODNAME&gt; [--previous] [--tail=20]</div>
+      <p class="cmd-label">Creates a replica pod for troubleshooting — does NOT affect the original</p>
+      <div class="cmd">oc debug pod/&lt;PODNAME&gt;</div>
+      <p class="cmd-label">View YAML — good for resource limits, SCCs, etc.</p>
+      <div class="cmd">oc get pod &lt;PODNAME&gt; -o yaml</div>
+    </div>
+
+    <div class="subsection">
+      <h3>Other Things to Check</h3>
+      <ul class="check-list">
+        <li>Check Probes (liveness/readiness)</li>
+        <li>Check Environment Variables and ConfigMaps</li>
+        <li>Confirm the Pull Secret is correct</li>
+        <li>Validate the image name and tag</li>
+        <li>Check resource limits — compare pod vs node</li>
+        <li>Is there a dependent pod/service that is down?</li>
+      </ul>
+    </div>
+
+    <div class="subsection">
+      <h3>CrashLoopBackOff vs ImagePullBackOff</h3>
+      <p style="color:#bbb; font-size:0.875rem;">A <strong style="color:#ff9090">CrashLoopBackOff</strong> means the container starts, then dies immediately. An <strong style="color:#ff9090">ImagePullBackOff</strong> means the container never started at all — wrong image name, bad pull secret, etc.</p>
+    </div>
+
+    <div class="subsection">
+      <h3>If logs show nothing because it exits immediately, what next?</h3>
+      <p style="color:#aaa; font-size:0.875rem; margin-bottom:10px;">Look at <code style="color:#c8f0c0; background:#111; padding:1px 5px; border-radius:3px;">oc describe</code> — check Events, Last State, Reason, Exit Code. Look for OOMKilled, probe failures, mounting errors.</p>
+      <p class="cmd-label">Last 30 events in namespace, sorted by time</p>
+      <div class="cmd">oc get events -n &lt;NAMESPACE&gt; --sort-by=.lastTimestamp | tail -30</div>
+    </div>
+    <a class="back-top" href="#top">↑ Back to top</a>
+  </div>
+
+  <!-- SECTION 3: FILE TRANSFER -->
+  <div class="section" id="filetransfer">
+    <div class="section-title">
+      <span class="icon">📦</span>
+      <div class="title-block">
+        <h4>Large File Transfer / No rsync or tar</h4>
+        <span class="question">Rsync isn't available and the container image is minimal (no tar, no shell utilities). You need to get a 2GB file into the running workload. What are your options and tradeoffs?</span>
+      </div>
+    </div>
+    <p class="intro">Normally you can transfer files from your bastion/gateway server fairly easily.</p>
+
+    <div class="cmd-group">
+      <p class="cmd-label">Standard rsync (when available)</p>
+      <div class="cmd">oc rsync ./config/ &lt;Namespace&gt;/&lt;Podname&gt;:/opt/app/config/</div>
+      <p class="cmd-label">oc cp — uses tar under the hood, so won't work on minimal images</p>
+      <div class="cmd">oc cp ./config/ &lt;Namespace&gt;/&lt;Podname&gt;:/opt/app/config/</div>
+    </div>
+
+    <div class="subsection">
+      <h3>Option: Helper Pod Sharing a PVC</h3>
+      <p style="color:#aaa; font-size:0.875rem; margin-bottom:12px;">Create a minimal "helper" pod that mounts the same PVC your target pod uses. Copy files there — your main pod sees them via the shared PVC.</p>
+      <div class="yaml-block">apiVersion: v1
+kind: Pod
+metadata:
+  name: pvc-helper
+spec:
+  containers:
+  - name: helper
+    image: registry.access.redhat.com/ubi9/ubi-minimal
+    command: ["/bin/sh", "-c", "sleep infinity"]
+    volumeMounts:
+    - name: shared-data
+      mountPath: /data
+  volumes:
+  - name: shared-data
+    persistentVolumeClaim:
+      claimName: my-pvc</div>
+      <p class="cmd-label">Apply and copy to helper pod</p>
+      <div class="cmd">oc apply -f pvc-helper.yaml
+oc cp ./myfile.txt &lt;Namespace&gt;/pvc-helper:/data/myfile.txt</div>
+      <div class="note"><strong>Note:</strong> If your real app pod mounts the same PVC, the file will be visible there — potentially at a different mount path.</div>
+    </div>
+
+    <div class="subsection">
+      <h3>Option: ConfigMap (Small Files Only)</h3>
+      <p style="color:#aaa; font-size:0.875rem; margin-bottom:12px;">Works well for config files. Not suitable for a 2GB file — but good to know.</p>
+      <p class="cmd-label">Create ConfigMap from file</p>
+      <div class="cmd">oc create configmap my-file-cm --from-file=myfile.txt</div>
+      <div class="yaml-block">apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+spec:
+  containers:
+  - name: app
+    image: registry.access.redhat.com/ubi9/ubi-minimal
+    command: ["/bin/sh", "-c", "sleep infinity"]
+    volumeMounts:
+    - name: filevol
+      mountPath: /incoming
+      readOnly: true
+  volumes:
+  - name: filevol
+    configMap:
+      name: my-file-cm</div>
+      <p style="color:#aaa; font-size:0.85rem; margin-top:10px;">File will be visible at <code style="color:#c8f0c0; background:#111; padding:1px 5px; border-radius:3px;">/incoming/myfile.txt</code> inside the pod.</p>
+      <div class="note"><strong>Note:</strong> This YAML mounts the ConfigMap as a read-only volume. There's no init container here — the file is just directly available inside the running container at the mount path. If you need to copy it somewhere writable first, you'd add an init container to do that step.</div>
+    </div>
+    <a class="back-top" href="#top">↑ Back to top</a>
+  </div>
+
+  <!-- SECTION 4: MCO -->
+  <div class="section" id="mco">
+    <div class="section-title">
+      <span class="icon">⚙️</span>
+      <div class="title-block">
+        <h4>Machine Config Operator Degraded</h4>
+        <span class="question">Machine Config Operator is Degraded and one MachineConfigPool is not updating. Walk me through how you would triage this and what your priorities are.</span>
+      </div>
+    </div>
+    <p class="intro">During upgrades, MCO updates last and goes through each node — so seeing it degraded during that process is normal. It takes the most time.</p>
+
+    <div class="cmd-group">
+      <p class="cmd-label">List all Cluster Operators — check Available and Degraded columns</p>
+      <div class="cmd">oc get co</div>
+      <p class="cmd-label">Describe the machine-config operator — look at degraded reasons and messages</p>
+      <div class="cmd">oc describe co machine-config</div>
+      <p class="cmd-label">Check MachineConfigPool — UPDATED, UPDATING, DEGRADED, machine count vs ready</p>
+      <div class="cmd">oc get mcp</div>
+      <p class="cmd-label">Which nodes are NotReady, SchedulingDisabled, or Cordoned?</p>
+      <div class="cmd">oc get nodes</div>
+      <p class="cmd-label">MCO logs — the MCD runs on each node</p>
+      <div class="cmd">oc logs -n openshift-machine-config-operator &lt;POD&gt;</div>
+    </div>
+
+    <div class="note">Look for patterns: disk full on a node, OS mismatch on upgrade, stuck draining (DB locks?), update partially applied, node reboot failed.</div>
+
+    <div class="subsection">
+      <h3>What NOT to do when MCO is Degraded</h3>
+      <ul class="check-list">
+        <li>Don't update manually</li>
+        <li>Don't manually SSH and modify OS state</li>
+        <li>Don't force a reboot</li>
+        <li>Don't delete MachineConfigs blindly</li>
+        <li>Don't break the ignition state</li>
+      </ul>
+    </div>
+    <a class="back-top" href="#top">↑ Back to top</a>
+  </div>
+
+  <!-- SECTION 5: SECURITY -->
+  <div class="section" id="security">
+    <div class="section-title">
+      <span class="icon">🔒</span>
+      <div class="title-block">
+        <h4>Platform-Level Security Controls</h4>
+        <span class="question">What platform-level controls do you implement to secure an OpenShift cluster?</span>
+      </div>
+    </div>
+
+    <ul class="check-list">
+      <li>
+        <b>SCCs (Security Context Constraints)</b><br>
+        <div class="cmd" style="margin-top:6px">oc get pod &lt;PODNAME&gt; -n &lt;NAMESPACE&gt; -o jsonpath='{.metadata.annotations.openshift\.io/scc}{"\n"}'</div>
+        <div class="cmd">oc get scc</div>
+        <div class="cmd">oc adm policy who-can use scc privileged</div>
+      </li>
+      <li>
+        <b>Avoid Privileged Containers</b><br>
+        <div class="cmd" style="margin-top:6px">oc get pod &lt;PODNAME&gt; -o yaml | grep -A5 securityContext</div>
+        <p style="color:#999; font-size:0.8rem; margin-top:4px">Look for: <code style="color:#ff9090">privileged: true</code>, <code style="color:#ff9090">runAsUser: 0</code>, <code style="color:#ff9090">allowPrivilegeEscalation: true</code></p>
+      </li>
+      <li>
+        <b>NetworkPolicies</b><br>
+        <div class="cmd" style="margin-top:6px">oc get networkpolicy -A</div>
+        <div class="cmd">oc describe networkpolicy &lt;NAME&gt; -n &lt;NAMESPACE&gt;</div>
+      </li>
+      <li>
+        <b>RBAC Least Privilege</b><br>
+        <div class="cmd" style="margin-top:6px">oc adm policy who-can create pods
+oc get rolebinding -A
+oc get clusterrolebinding
+oc auth can-i create pods --as=&lt;USER&gt; -n &lt;NAMESPACE&gt;</div>
+      </li>
+      <li>
+        <b>Image Scanning / Trusted Registries</b> — Don't pull random Docker Hub images in prod<br>
+        <div class="cmd" style="margin-top:6px">oc get pods -A -o jsonpath='{range .items[*]}{.spec.containers[*].image}{"\n"}{end}'</div>
+        <div class="cmd">oc get imagecontentsourcepolicy</div>
+      </li>
+      <li>
+        <b>Pull Secrets</b><br>
+        <div class="cmd" style="margin-top:6px">oc get secrets -n &lt;NAMESPACE&gt;
+oc get sa default -o yaml -n &lt;NAMESPACE&gt;</div>
+      </li>
+      <li>
+        <b>Audit Logs</b><br>
+        <div class="cmd" style="margin-top:6px">oc adm node-logs &lt;MASTERNODE&gt; --path=kube-apiserver/audit.log</div>
+        <div class="cmd">oc get apiserver cluster -o yaml | grep audit</div>
+      </li>
+      <li>
+        <b>OIDC Integration</b> — Don't use htpasswd in production<br>
+        <div class="cmd" style="margin-top:6px">oc get oauth cluster -o yaml
+oc get users
+oc get identities</div>
+      </li>
+      <li>
+        <b>Secrets Management</b> — Mount as files or use external stores, not plain env vars<br>
+        <div class="cmd" style="margin-top:6px">oc get pods -A -o yaml | grep -i env</div>
+        <div class="cmd">oc get secrets -A</div>
+      </li>
+      <li>
+        <b>Separate Infrastructure Nodes</b> for ingress/monitoring (if needed)<br>
+        <div class="cmd" style="margin-top:6px">oc get nodes --show-labels | grep node-role
+oc get pods -n openshift-ingress -o wide
+oc get pods -n openshift-monitoring -o wide</div>
+      </li>
+    </ul>
+
+    <div class="note">OpenShift does not run pods/containers as root by default — a key distinction from vanilla Kubernetes. All pods default to the Restricted SCC. <a href="https://www.redhat.com/en/blog/managing-sccs-in-openshift" target="_blank">More on SCCs →</a> | <a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.13/html/authentication_and_authorization/managing-pod-security-policies" target="_blank">Pod Security Policies →</a></div>
+
+    <div class="subsection">
+      <h3>How would you prevent developers from running privileged containers?</h3>
+      <ul class="check-list">
+        <li>Use the restricted SCC</li>
+        <li>RBAC restrictions</li>
+        <li>Admission controls</li>
+        <li>Don't grant anyuid or privileged</li>
+        <li>Review service accounts</li>
+        <li>Namespace-level controls</li>
+      </ul>
+    </div>
+
+    <div class="subsection">
+      <h3>What's your approach to secrets management?</h3>
+      <ul class="check-list">
+        <li>Avoid plain environment variables in Git</li>
+        <li>External secret stores (Vault, AWS Secrets Manager, etc.)</li>
+        <li>Sealed Secrets or External Secrets Operator</li>
+        <li>RBAC on secret access</li>
+        <li>Secret rotation strategy — regularly rotating passwords, API keys, and encryption keys on a schedule</li>
+      </ul>
+    </div>
+    <a class="back-top" href="#top">↑ Back to top</a>
+  </div>
+
+  <!-- SECTION 6: UPGRADE -->
+  <div class="section" id="upgrade">
+    <div class="section-title">
+      <span class="icon">🚀</span>
+      <div class="title-block">
+        <h4>Minor Version Upgrade</h4>
+        <span class="question">How do you plan and execute an OpenShift minor version upgrade in production?</span>
+      </div>
+    </div>
+
+    <p class="cmd-label">Upgrade command (from internal registry — brute force but functional)</p>
+    <div class="cmd">oc adm upgrade --allow-explicit-upgrade --force \
+  --allow-upgrade-with-warnings \
+  --to-image internalserver.domain.com/openshift/release:4.18.30-x86_64</div>
+
+    <div class="subsection">
+      <h3>Pre-Upgrade Checklist</h3>
+      <ul class="check-list">
+        <li>Check release notes / breaking changes</li>
+        <li>Validate all cluster operators are healthy — <code style="color:#c8f0c0; background:#111; padding:1px 4px; border-radius:3px;">oc get co</code></li>
+        <li>Upgrade a non-production cluster first</li>
+        <li>Review deprecated APIs</li>
+        <li><a href="https://docs.redhat.com/en/documentation/openshift_container_platform/4.4/html/backup_and_restore/backup-etcd" target="_blank">Backup etcd →</a></li>
+        <li>Maintenance window planning</li>
+        <li>Understand node draining behavior</li>
+        <li>Plan post-upgrade validation (smoke tests)</li>
+      </ul>
+    </div>
+
+    <div class="subsection">
+      <h3>Post-Upgrade Validation</h3>
+      <ul class="check-list">
+        <li><b>Deployments</b> — Create a test deployment. Does it schedule and run?</li>
+        <li><b>Service/Ingress</b> — Verify connectivity via route/ingress</li>
+        <li><b>Storage</b> — Verify PVs are bound, pods can read/write</li>
+        <li><b>CLI/API</b> — Run <code style="color:#c8f0c0; background:#111; padding:1px 4px; border-radius:3px;">oc</code> commands — do they respond?</li>
+      </ul>
+    </div>
+
+    <div class="subsection">
+      <h3>One worker node doesn't return after the upgrade. What do you do?</h3>
+      <p style="color:#aaa; font-size:0.875rem; margin-bottom:12px;"><b style="color:#ddd">MCP</b> (MachineConfigPool) — defines which nodes are in the pool via labels, tracks status.<br><b style="color:#ddd">MCD</b> (MachineConfigDaemon) — daemonset on each node, applies config, drains, reboots.</p>
+      <ul class="check-list">
+        <li>
+          <b>Check MCP</b><br>
+          <div class="cmd" style="margin-top:6px">oc get mcp
+oc describe mcp worker</div>
+          <p style="color:#999; font-size:0.8rem">Look for Updating=True, Degraded=True, MachineCount vs UpdatedMachineCount</p>
+        </li>
+        <li>
+          <b>Check MCD Logs</b><br>
+          <div class="cmd" style="margin-top:6px">oc get pods -n openshift-machine-config-operator -o wide | grep &lt;NODENAME&gt;
+oc logs -n openshift-machine-config-operator &lt;MCDPOD&gt; -c machine-config-daemon</div>
+          <p style="color:#999; font-size:0.8rem">Look for drain failures, reboot loops, config apply errors, failed OS pivot</p>
+        </li>
+        <li>
+          <b>Node stuck draining?</b><br>
+          <div class="cmd" style="margin-top:6px">oc describe node &lt;NODENAME&gt;</div>
+          <p style="color:#999; font-size:0.8rem">Look for pods that won't evict</p>
+        </li>
+        <li>
+          <b>Disk Full?</b><br>
+          <div class="cmd" style="margin-top:6px">oc debug node/&lt;NODENAME&gt;
+# then: chroot /host
+df -h
+df -i</div>
+          <p style="color:#999; font-size:0.8rem">Disk at 90%+ is a problem. Check for inode exhaustion too.</p>
+        </li>
+        <li>
+          <b>Cordon + Manual Investigation</b><br>
+          <div class="cmd" style="margin-top:6px">oc debug node/&lt;NODENAME&gt;
+# then: chroot /host
+systemctl status kubelet
+journalctl -u kubelet -n 100</div>
+          <div class="cmd">oc adm drain &lt;NODE&gt; --force --ignore-daemonsets --delete-emptydir-data</div>
+        </li>
+        <li>Check cloud provider console if IaaS</li>
+        <li>Don't immediately delete the node unless absolutely necessary</li>
+      </ul>
+    </div>
+    <a class="back-top" href="#top">↑ Back to top</a>
+  </div>
+
+  <!-- SECTION 7: PERFORMANCE -->
+  <div class="section" id="perf">
+    <div class="section-title">
+      <span class="icon">📊</span>
+      <div class="title-block">
+        <h4>Cluster Performance / Slowness</h4>
+        <span class="question">Applications are reporting slowness, but all ClusterOperators are Available and no alerts are firing. How do you approach this?</span>
+      </div>
+    </div>
+    <p class="intro">Finding the bottleneck when everything looks "fine" on the surface.</p>
+
+    <ul class="check-list">
+      <li>
+        <b>API Server Latency</b><br>
+        <div class="cmd" style="margin-top:6px">oc get --raw /metrics | grep apiserver_request_duration_seconds_bucket | head</div>
+        <div class="cmd">oc get --raw /readyz?verbose</div>
+      </li>
+      <li>
+        <b>etcd fsync Latency</b><br>
+        <div class="cmd" style="margin-top:6px">oc -n openshift-etcd exec -it &lt;ETCD-PODNAME&gt; -- \
+  curl -s https://localhost:2381/metrics | grep fsync</div>
+        <p style="color:#999; font-size:0.8rem">Look for <code style="color:#c8f0c0; background:#111; padding:1px 4px; border-radius:3px;">etcd_disk_wal_fsync_duration_seconds</code> — anything at 10ms or above is concerning</p>
+      </li>
+      <li>
+        <b>Node CPU Steal / Throttling</b><br>
+        <div class="cmd" style="margin-top:6px">oc adm top nodes
+oc debug node/&lt;NODENAME&gt;  # chroot /host, then: top</div>
+      </li>
+      <li>
+        <b>Disk I/O Pressure</b><br>
+        <div class="cmd" style="margin-top:6px">oc debug node/&lt;NODENAME&gt;  # chroot /host, then: iostat -x 1</div>
+        <div class="cmd">oc describe node &lt;NODENAME&gt; | grep -i diskpressure</div>
+        <p style="color:#999; font-size:0.8rem">await &gt; 20ms is bad. %util near 100% = saturated.</p>
+      </li>
+      <li>
+        <b>Network Congestion</b><br>
+        <div class="cmd" style="margin-top:6px">oc exec &lt;PODNAME&gt; -- netstat -s | grep retrans</div>
+        <div class="cmd">oc debug node/&lt;NODENAME&gt;  # chroot /host, then: sar -n DEV 1</div>
+        <p style="color:#999; font-size:0.8rem">Looking for high RX/TX errors and packet drops</p>
+      </li>
+      <li>
+        <b>DNS Resolution Issues</b><br>
+        <div class="cmd" style="margin-top:6px">oc exec -it &lt;PODNAME&gt; -- nslookup kubernetes.default</div>
+        <div class="cmd">oc -n openshift-dns logs -l dns.operator.openshift.io/daemonset-dns=default</div>
+      </li>
+      <li>
+        <b>Router Saturation (Ingress)</b><br>
+        <div class="cmd" style="margin-top:6px">oc -n openshift-ingress exec deploy/router-default -- \
+  curl -s localhost:1936/metrics | grep haproxy</div>
+        <div class="cmd">oc adm top pods -n openshift-ingress</div>
+        <p style="color:#999; font-size:0.8rem">High CPU + latency = bottleneck at the router</p>
+      </li>
+      <li>
+        <b>HPA Thrashing</b> (Horizontal Pod Autoscaler)<br>
+        <div class="cmd" style="margin-top:6px">oc get hpa -A
+oc describe hpa &lt;HPANAME&gt;</div>
+        <p style="color:#999; font-size:0.8rem">Look for scaling events and oscillating replica counts</p>
+      </li>
+      <li>
+        <b>Pod Restarts Trend</b><br>
+        <div class="cmd" style="margin-top:6px">oc get pods -A --sort-by=.status.containerStatuses[0].restartCount</div>
+        <div class="cmd">watch -n 5 'oc get pods -A | grep -v Running'</div>
+      </li>
+    </ul>
+
+    <div class="warn-box">
+      <strong>What hurts most:</strong> etcd latency and disk I/O cause the most widespread pain. DNS issues cause "everything feels weird" symptoms. CPU throttling silently kills performance and is often missed.
+    </div>
+
+    <div class="subsection">
+      <h3>How do you determine if this is cluster-wide or namespace-specific?</h3>
+      <ul class="check-list">
+        <li>Compare metrics across multiple namespaces</li>
+        <li>Check router metrics</li>
+        <li>Review API latency metrics</li>
+        <li>Check node-level saturation</li>
+        <li>Determine if only certain workloads are affected</li>
+      </ul>
+    </div>
+    <a class="back-top" href="#top">↑ Back to top</a>
+  </div>
+
+  <!-- SECTION 8: ETCD -->
+  <div class="section" id="etcd">
+    <div class="section-title">
+      <span class="icon">🗄️</span>
+      <div class="title-block">
+        <h4>etcd High Latency & Leader Changes</h4>
+        <span class="question">etcd shows high latency and leader changes. What do you investigate first?</span>
+      </div>
+    </div>
+
+    <ul class="check-list">
+      <li>
+        <b>etcd fsync Latency</b><br>
+        <div class="cmd" style="margin-top:6px">oc -n openshift-etcd exec -it &lt;ETCD-PODNAME&gt; -- \
+  curl -s https://localhost:2381/metrics | grep fsync</div>
+        <p style="color:#999; font-size:0.8rem">etcd_disk_wal_fsync_duration_seconds — 10ms+ is concerning</p>
+      </li>
+      <li>
+        <b>Disk Full / Pressure</b><br>
+        <div class="cmd" style="margin-top:6px">oc debug node/&lt;NODENAME&gt;  # chroot /host, then: df -h</div>
+        <div class="cmd">oc describe node &lt;MASTERNODE&gt; | grep -i diskpressure</div>
+        <p style="color:#999; font-size:0.8rem">85%+ disk can be an issue</p>
+      </li>
+      <li>
+        <b>Resource Starvation (CPU/Memory)</b><br>
+        <div class="cmd" style="margin-top:6px">oc adm top nodes
+oc adm top pods -n openshift-etcd
+oc debug node/&lt;MASTERNODE&gt;  # chroot /host, then: top</div>
+      </li>
+      <li>
+        <b>Network Latency Between Masters</b><br>
+        <div class="cmd" style="margin-top:6px">oc -n openshift-etcd exec -it &lt;ETCDPOD&gt; -- \
+  etcdctl endpoint status --cluster -w table</div>
+        <div class="cmd">oc debug node/&lt;MASTERNODE&gt;  # chroot /host, then ping another master IP</div>
+        <p style="color:#999; font-size:0.8rem">Look for LATENCY column and leader changes in the table</p>
+      </li>
+      <li>
+        <b>Excessive API Churn</b><br>
+        <div class="cmd" style="margin-top:6px">oc get events -A --sort-by=.lastTimestamp | tail -50</div>
+        <div class="cmd">oc adm top pods -A --sort-by=cpu</div>
+        <p style="color:#999; font-size:0.8rem">Look for noisy controllers or users hammering the API</p>
+      </li>
+      <li>
+        <b>Backup Frequency (etcd backups running too often?)</b><br>
+        <div class="cmd" style="margin-top:6px">oc get cronjobs -A
+oc get pods -n openshift-etcd</div>
+      </li>
+      <li>
+        <b>Quorum / Leader Changes</b><br>
+        <div class="cmd" style="margin-top:6px">oc -n openshift-etcd exec -it &lt;ETCDPOD&gt; -- \
+  etcdctl endpoint status --cluster -w table</div>
+        <div class="cmd">oc -n openshift-etcd exec -it &lt;ETCDPOD&gt; -- \
+  etcdctl member list -w table</div>
+        <p style="color:#999; font-size:0.8rem">Look for leader flipping frequently and inconsistent raft index</p>
+      </li>
+    </ul>
+
+    <div class="warn-box">
+      <strong>Usually:</strong> fsync latency and disk I/O are the culprits. Disk or network tend to be the root cause.
+    </div>
+
+    <div class="subsection">
+      <h3>Would you reboot a master immediately?</h3>
+      <div class="warn-box"><strong>No.</strong> Not casually. Understand the quorum first. Do health checks. If a reboot is necessary, do it one node at a time.</div>
+    </div>
+    <a class="back-top" href="#top">↑ Back to top</a>
+  </div>
+
+  <!-- SECTION 9: NODE NOTREADY -->
+  <div class="section" id="notready">
+    <div class="section-title">
+      <span class="icon">🖥️</span>
+      <div class="title-block">
+        <h4>Worker Node NotReady</h4>
+        <span class="question">A worker node suddenly goes NotReady. Walk me through how you would investigate and decide what to do next.</span>
+      </div>
+    </div>
+    <p class="intro">This stems from a handful of possibilities — troubleshooting the node itself, understanding kubelet, and cloud vs. on-prem behavior.</p>
+
+    <div class="cmd-group">
+      <p class="cmd-label">Grab node status — look for Ready, SchedulingDisabled, NotReady</p>
+      <div class="cmd">oc get nodes</div>
+      <p class="cmd-label">Look at node details — MemoryPressure, DiskPressure, PIDPressure, NetworkUnavailable, taints, recent events</p>
+      <div class="cmd">oc describe node &lt;NODE&gt;</div>
+      <p class="cmd-label">Log into the node — run chroot /host, then journalctl -u kubelet to see kubelet logs</p>
+      <div class="cmd">oc debug node/&lt;NODE&gt;</div>
+      <p class="cmd-label">If multiple nodes are behaving oddly, check operators and MCP</p>
+      <div class="cmd">oc get co
+oc get mcp</div>
+    </div>
+
+    <div class="subsection">
+      <h3>Things to investigate inside oc debug (chroot /host first)</h3>
+      <ul class="check-list">
+        <li>
+          <b>Pod placement on the node</b><br>
+          <div class="cmd" style="margin-top:6px">oc get pods -A -o wide | grep &lt;NODENAME&gt;</div>
+        </li>
+        <li>
+          <b>Suspect it's stuck draining</b><br>
+          <div class="cmd" style="margin-top:6px">oc describe node &lt;NODENAME&gt;</div>
+          <div class="cmd">oc get pdb -A</div>
+          <p style="color:#999; font-size:0.8rem">A node can look weird if it's stuck draining — often due to a PDB blocking eviction</p>
+        </li>
+        <li>
+          <b>Kubelet logs</b><br>
+          <div class="cmd" style="margin-top:6px">systemctl status kubelet</div>
+          <div class="cmd">journalctl -u kubelet -n 100 --no-pager</div>
+          <p style="color:#999; font-size:0.8rem">Is kubelet running? Crash looping? Cert errors?</p>
+        </li>
+        <li>
+          <b>Container runtime (CRI-O)</b><br>
+          <div class="cmd" style="margin-top:6px">systemctl status crio</div>
+          <div class="cmd">journalctl -u crio -n 100 --no-pager</div>
+          <p style="color:#999; font-size:0.8rem">If kubelet is fine but CRI-O is stuck, pods may be dead or node status degraded</p>
+        </li>
+        <li>
+          <b>Restart CRI-O and Kubelet</b> — only if you have a good idea why it failed<br>
+          <div class="cmd" style="margin-top:6px">systemctl restart crio
+systemctl restart kubelet</div>
+        </li>
+        <li>
+          <b>Disk space</b><br>
+          <div class="cmd" style="margin-top:6px">df -h
+df -i</div>
+          <p style="color:#999; font-size:0.8rem">Check inodes too — inode exhaustion looks just like full disk</p>
+        </li>
+        <li>
+          <b>Resource pressure</b><br>
+          <div class="cmd" style="margin-top:6px">top
+free -h</div>
+          <div class="cmd">oc adm top nodes</div>
+        </li>
+        <li>
+          <b>Network connectivity to API</b><br>
+          <div class="cmd" style="margin-top:6px">ping &lt;API-VIP-OR-API-HOST&gt;</div>
+          <div class="cmd">curl -k https://api.&lt;CLUSTERNAME&gt;:6443/readyz</div>
+          <p style="color:#999; font-size:0.8rem">If the host is alive but can't reach the API, that points to a network issue</p>
+        </li>
+      </ul>
+    </div>
+
+    <div class="subsection">
+      <h3>Partitioned vs. Dead Node</h3>
+      <p style="color:#bbb; font-size:0.875rem; margin-bottom:8px;"><strong style="color:#ff9090">Partitioned:</strong> VM/host is alive, but kubelet or network path is broken.<br><strong style="color:#ff9090">Dead Node:</strong> VM/host is actually down, hung, or unreachable.</p>
+    </div>
+
+    <div class="subsection">
+      <h3>If this is draining/upgrade-related</h3>
+      <div class="cmd">oc describe mcp worker
+oc get pods -n openshift-machine-config-operator -o wide | grep &lt;NODENAME&gt;
+oc logs -n openshift-machine-config-operator &lt;MCD-POD&gt; -c machine-config-daemon</div>
+      <p style="color:#999; font-size:0.8rem; margin-top:6px">Look for stuck draining or PDB blockage. Sometimes it just takes time to drain and configure.</p>
+    </div>
+
+    <div class="warn-box">
+      <strong>Don't immediately delete the node!</strong> It may be in a draining state. Don't restart it without investigating first.
+    </div>
+    <a class="back-top" href="#top">↑ Back to top</a>
+  </div>
+
+  <!-- SECTION 10: PVC PENDING -->
+  <div class="section" id="pvcpending">
+    <div class="section-title">
+      <span class="icon">💾</span>
+      <div class="title-block">
+        <h4>PVC Not Binding / Pod Pending</h4>
+        <span class="question">A pod is stuck in Pending state due to a PVC not binding. How do you troubleshoot this?</span>
+      </div>
+    </div>
+    <p class="intro">Having a strong understanding of PVC and persistent storage is key in OpenShift. Also helpful to understand CSI.</p>
+
+    <div class="cmd-group">
+      <p class="cmd-label">Check pod events — look for FailedScheduling, unbound PersistentVolumeClaims</p>
+      <div class="cmd">oc describe pod &lt;PODNAME&gt; -n &lt;NAMESPACE&gt;</div>
+      <p class="cmd-label">List PVCs and check bind status — look for Pending in the STATUS column</p>
+      <div class="cmd">oc get pvc -n &lt;NAMESPACE&gt;</div>
+      <p class="cmd-label">Describe the PVC — events at the bottom are key</p>
+      <div class="cmd">oc describe pvc &lt;PVCNAME&gt; -n &lt;NAMESPACE&gt;</div>
+    </div>
+
+    <div class="subsection">
+      <h3>Things to dig into</h3>
+      <ul class="check-list">
+        <li>
+          <b>StorageClass correctness</b><br>
+          <div class="cmd" style="margin-top:6px">oc get sc | grep '(default)'</div>
+          <p style="color:#999; font-size:0.8rem">Verify the correct provisioner (ebs.csi, ceph, etc.) and that a default SC exists. Look for a wrong or missing SC.</p>
+        </li>
+        <li>
+          <b>AccessModes mismatch</b><br>
+          <div class="cmd" style="margin-top:6px">oc get pvc &lt;PVC&gt; -o yaml | grep accessModes -A2</div>
+          <div class="cmd">oc get pv</div>
+          <p style="color:#999; font-size:0.8rem">Common mismatch: PVC requests ReadWriteMany but backend only supports ReadWriteOnce</p>
+        </li>
+        <li>
+          <b>Capacity issues</b><br>
+          <div class="cmd" style="margin-top:6px">oc get pv</div>
+          <div class="cmd">oc describe pvc &lt;PVC&gt;</div>
+          <p style="color:#999; font-size:0.8rem">Is the PV large enough? Does the requested storage match what's available?</p>
+        </li>
+        <li>
+          <b>Check provisioner pods (rook-ceph, EBS CSI, etc.)</b><br>
+          <div class="cmd" style="margin-top:6px">oc get pods -A | grep -i csi</div>
+          <div class="cmd">oc logs &lt;CSIPOD&gt; -n &lt;NAMESPACE&gt;</div>
+          <p style="color:#999; font-size:0.8rem">If the provisioner is down, the PVC stays Pending</p>
+        </li>
+        <li>
+          <b>Node affinity / topology constraints</b><br>
+          <div class="cmd" style="margin-top:6px">oc describe pvc &lt;PVC&gt;</div>
+          <div class="cmd">oc describe pod &lt;PODNAME&gt;</div>
+          <p style="color:#999; font-size:0.8rem">Look for "waiting for first consumer" and node selectors/affinity restricting storage to certain nodes</p>
+        </li>
+      </ul>
+    </div>
+
+    <div class="subsection">
+      <h3>Dynamic vs. Static Provisioning</h3>
+      <p style="color:#bbb; font-size:0.875rem;"><strong style="color:#ddd">Dynamic:</strong> PVC → StorageClass → provisioner creates PV automatically. Failures usually mean a broken provisioner, bad SC, or topology mismatch.<br><br><strong style="color:#ddd">Static:</strong> PV must exist before a PVC binds. Issues can be no matching PV, wrong size, wrong access mode, wrong StorageClass, or already bound.</p>
+    </div>
+
+    <div class="subsection">
+      <h3>Quick test flow</h3>
+      <div class="cmd">oc describe pvc &lt;PVC&gt;
+oc get storageclass
+oc get pv
+oc get pods -A | grep -i csi
+oc describe pod &lt;POD&gt;</div>
+    </div>
+
+    <div class="note">
+      <a href="https://docs.redhat.com/en/documentation/red_hat_openshift_container_storage/4.5/html/managing_openshift_container_storage/managing-persistent-volume-claims_rhocs#configuring-application-pods-to-use-openshift-container-storage_rhocs" target="_blank">Using PVC in pods →</a><br>
+      <a href="https://docs.redhat.com/en/documentation/red_hat_openshift_container_storage/3.11/html/operations_guide/chap-documentation-red_hat_gluster_storage_container_native_with_openshift_platform-openshift_creating_persistent_volumes" target="_blank">Creating PV and PVCs in OpenShift →</a>
+    </div>
+    <a class="back-top" href="#top">↑ Back to top</a>
+  </div>
+
+  <!-- SECTION 11: ROUTE -->
+  <div class="section" id="route">
+    <div class="section-title">
+      <span class="icon">🌐</span>
+      <div class="title-block">
+        <h4>Route Created, External Access Broken</h4>
+        <span class="question">A route is created, but external users cannot access the application. Internal pod-to-pod traffic works. What do you check?</span>
+      </div>
+    </div>
+    <p class="intro">External access goes through the ingress controller (router). Routes map external traffic → service → pods. If internal works but external doesn't, the problem is almost always the route, router, DNS, or load balancer — not the app.</p>
+
+    <div class="cmd-group">
+      <p class="cmd-label">Check the route — look for correct host, service name, port, and TLS config</p>
+      <div class="cmd">oc get route -n &lt;NAMESPACE&gt;</div>
+      <div class="cmd">oc describe route &lt;ROUTENAME&gt; -n &lt;NAMESPACE&gt;</div>
+      <p class="cmd-label">Check service and endpoints — endpoints should show pod IPs and ports (e.g. 10.128.2.15:8080)</p>
+      <div class="cmd">oc get svc &lt;SERVICENAME&gt; -n &lt;NAMESPACE&gt;</div>
+      <div class="cmd">oc get endpoints &lt;SERVICENAME&gt; -n &lt;NAMESPACE&gt;</div>
+      <p style="color:#999; font-size:0.8rem; margin-top:4px;">Empty endpoints = wrong service selector, pods not ready, or wrong port. Route is fine but has nowhere to send traffic.</p>
+      <p class="cmd-label">Check ingress/router pods — running? crashing? CPU pinned?</p>
+      <div class="cmd">oc get pods -n openshift-ingress
+oc get svc -n openshift-ingress
+oc adm top pods -n openshift-ingress</div>
+    </div>
+
+    <div class="subsection">
+      <h3>Other things to check</h3>
+      <ul class="check-list">
+        <li>
+          <b>TLS Termination Issues</b><br>
+          <div class="cmd" style="margin-top:6px">oc logs -n openshift-ingress deploy/router-default</div>
+          <div class="cmd">oc get route &lt;ROUTE&gt; -o yaml</div>
+          <p style="color:#999; font-size:0.8rem">Look for backend connection failures, TLS errors, route not admitted. Check <code style="color:#c8f0c0; background:#111; padding:1px 4px; border-radius:3px;">status.ingress.conditions</code> — Admitted should be true. Also check the termination type: Edge, Passthrough, or Reencrypt.</p>
+        </li>
+        <li>
+          <b>DNS Resolution</b><br>
+          <div class="cmd" style="margin-top:6px">nslookup &lt;ROUTEHOST&gt;</div>
+          <p style="color:#999; font-size:0.8rem">Should resolve to the router's external IP or load balancer. If not, it's a DNS issue.</p>
+        </li>
+        <li>
+          <b>Firewall / Load Balancer outside the cluster</b><br>
+          <div class="cmd" style="margin-top:6px">oc get svc -n openshift-ingress</div>
+          <p style="color:#999; font-size:0.8rem">Look for LoadBalancer IP (cloud) or NodePort (on-prem). Verify 80/443 is open and LB is pointing to the right nodes.</p>
+        </li>
+      </ul>
+    </div>
+
+    <div class="subsection">
+      <h3>TLS Termination Types</h3>
+      <ul class="check-list">
+        <li><b>Edge</b> — Router terminates TLS. Backend is plain HTTP.</li>
+        <li><b>Passthrough</b> — TLS goes directly to the pod. No HTTP inspection.</li>
+        <li><b>Reencrypt</b> — TLS to router, then TLS again to the pod.</li>
+      </ul>
+    </div>
+
+    <div class="subsection">
+      <h3>Quick test flow</h3>
+      <div class="cmd">oc describe route &lt;ROUTE&gt;
+oc get endpoints &lt;SERVICENAME&gt;
+oc get pods -n openshift-ingress
+nslookup &lt;HOST&gt;
+curl -vk https://&lt;HOST&gt;</div>
+    </div>
+    <a class="back-top" href="#top">↑ Back to top</a>
+  </div>
+
+  <!-- SECTION 12: SCHEDULING -->
+  <div class="section" id="scheduling">
+    <div class="section-title">
+      <span class="icon">📋</span>
+      <div class="title-block">
+        <h4>Pod Won't Schedule — Resources Available</h4>
+        <span class="question">A developer says their pod won't schedule, but there are nodes with free resources. What could be happening?</span>
+      </div>
+    </div>
+    <p class="intro">The scheduler doesn't just look at free resources. It evaluates constraints like quotas, affinity, taints, and policies. If any constraint fails, the pod won't schedule.</p>
+
+    <div class="cmd-group">
+      <p class="cmd-label">Check pod events — look for FailedScheduling and the reason (0/5 nodes available, taint mismatch, quota exceeded, etc.)</p>
+      <div class="cmd">oc describe pod &lt;PODNAME&gt; -n &lt;NAMESPACE&gt;</div>
+      <p class="cmd-label">Check namespace quota — look for CPU/RAM limits exceeded or object count limits like Pods: 10/10</p>
+      <div class="cmd">oc get quota -n &lt;NAMESPACE&gt;</div>
+      <div class="cmd">oc describe quota -n &lt;NAMESPACE&gt;</div>
+    </div>
+
+    <div class="subsection">
+      <h3>Other things to look for</h3>
+      <ul class="check-list">
+        <li>
+          <b>LimitRanges</b><br>
+          <div class="cmd" style="margin-top:6px">oc get limitrange -n &lt;NAMESPACE&gt;</div>
+          <div class="cmd">oc describe limitrange -n &lt;NAMESPACE&gt;</div>
+          <p style="color:#999; font-size:0.8rem">See if default requests are too high or max limits exceeded</p>
+        </li>
+        <li>
+          <b>Node Selectors / Affinity</b><br>
+          <div class="cmd" style="margin-top:6px">oc get pod &lt;PODNAME&gt; -o yaml | grep -A5 nodeSelector</div>
+          <div class="cmd">oc get pod &lt;PODNAME&gt; -o yaml | grep -A10 affinity</div>
+          <div class="cmd">oc get nodes --show-labels</div>
+          <p style="color:#999; font-size:0.8rem">Selector doesn't match any node? Zone/region mismatch?</p>
+        </li>
+        <li>
+          <b>Taints and Tolerations</b><br>
+          <div class="cmd" style="margin-top:6px">oc describe node &lt;NODE&gt; | grep -i taint</div>
+          <div class="cmd">oc get pod &lt;PODNAME&gt; -o yaml | grep -A5 tolerations</div>
+          <p style="color:#999; font-size:0.8rem">If a node has a taint and the pod doesn't tolerate it, it won't schedule</p>
+        </li>
+        <li>
+          <b>Resource Requests &gt; Allocatable</b><br>
+          <div class="cmd" style="margin-top:6px">oc describe node &lt;NODE&gt;</div>
+          <div class="cmd">oc adm top nodes</div>
+          <p style="color:#999; font-size:0.8rem">Look at Allocatable vs. Allocated Resources. CPU/memory fragmentation can be an issue even when total looks fine.</p>
+        </li>
+        <li>
+          <b>PVC / Storage Constraints</b><br>
+          <div class="cmd" style="margin-top:6px">oc describe pvc -n &lt;NAMESPACE&gt;</div>
+          <p style="color:#999; font-size:0.8rem">If you see "pod has unbound immediate PVC," the scheduler won't place the pod</p>
+        </li>
+        <li>
+          <b>SCC / Security Constraints</b><br>
+          <div class="cmd" style="margin-top:6px">oc describe pod &lt;PODNAME&gt; | grep -i scc</div>
+          <div class="cmd">oc get events -n &lt;NAMESPACE&gt;</div>
+          <p style="color:#999; font-size:0.8rem">Sometimes the pod can't be admitted due to SCC violations</p>
+        </li>
+      </ul>
+    </div>
+
+    <div class="warn-box">
+      <strong>Note:</strong> Scheduler decisions are based on <em>requests</em>, not actual usage. A node can show low utilization but still be "full" from the scheduler's perspective. Also check namespace-level constraints.
+    </div>
+    <a class="back-top" href="#top">↑ Back to top</a>
+  </div>
+<script>
+  document.querySelectorAll('.cmd').forEach(el => {
+    const wrap = document.createElement('div');
+    wrap.className = 'cmd-wrap';
+    el.parentNode.insertBefore(wrap, el);
+    wrap.appendChild(el);
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.textContent = '⎘ Copy';
+    wrap.appendChild(btn);
+    btn.addEventListener('click', () => {
+      navigator.clipboard.writeText(el.innerText).then(() => {
+        btn.textContent = '✓ Copied';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = '⎘ Copy'; btn.classList.remove('copied'); }, 1800);
+      });
+    });
+  });
+</script>
+</body>
+</html>
