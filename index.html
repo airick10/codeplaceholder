@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OpenShift Demo App</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: #16213e;
+      border: 1px solid #0f3460;
+      border-radius: 12px;
+      padding: 40px 50px;
+      max-width: 520px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .logo { font-size: 2.5rem; margin-bottom: 8px; }
+    h1 { font-size: 1.6rem; color: #e94560; margin-bottom: 6px; }
+    .subtitle { font-size: 0.9rem; color: #888; margin-bottom: 30px; }
+    .status-block {
+      background: #0f3460;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-top: 20px;
+      text-align: left;
+    }
+    .status-block h2 {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #888;
+      margin-bottom: 12px;
+    }
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      font-size: 0.9rem;
+      border-bottom: 1px solid #1a1a3e;
+    }
+    .status-row:last-child { border-bottom: none; }
+    .badge {
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+    .ok   { background: #1a472a; color: #5dbb63; }
+    .info { background: #1a3a47; color: #5bc4e9; }
+    .pod-name { font-size: 0.7rem; color: #555; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">🚀</div>
+    <h1>OpenShift Demo App</h1>
+    <p class="subtitle">A minimal deployment demo — web + database</p>
+
+    <div class="status-block">
+      <h2>Service Status</h2>
+      <div class="status-row">
+        <span>Web Pod</span>
+        <span class="badge ok">● Running</span>
+      </div>
+      <div class="status-row">
+        <span>MySQL Pod</span>
+        <span class="badge ok">● Deployed</span>
+      </div>
+      <div class="status-row">
+        <span>Web Server</span>
+        <span class="badge info">nginx</span>
+      </div>
+    </div>
+
+    <div class="status-block" style="margin-top: 12px;">
+      <h2>App Config</h2>
+      <div class="status-row">
+        <span style="color:#888;">app_name</span>
+        <span style="color:#aaa; font-size:0.85rem;">OpenShift Demo App</span>
+      </div>
+      <div class="status-row">
+        <span style="color:#888;">environment</span>
+        <span style="color:#aaa; font-size:0.85rem;">demo</span>
+      </div>
+      <div class="status-row">
+        <span style="color:#888;">version</span>
+        <span style="color:#aaa; font-size:0.85rem;">1.0.0</span>
+      </div>
+    </div>
+
+    <p class="pod-name">Served by nginx — verify MySQL with: oc get pods</p>
+  </div>
+</body>
+</html>
