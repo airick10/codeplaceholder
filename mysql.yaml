@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.mysql.name }}
+  labels:
+    app: {{ .Values.mysql.name }}
+spec:
+  replicas: {{ .Values.mysql.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.mysql.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.mysql.name }}
+    spec:
+      containers:
+        - name: {{ .Values.mysql.name }}
+          image: {{ .Values.mysql.image }}
+          ports:
+            - containerPort: {{ .Values.mysql.port }}
+          envFrom:
+            - secretRef:
+                name: mysql-secret
+          readinessProbe:
+            exec:
+              command: ["mysqladmin", "ping", "-h", "localhost"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          volumeMounts:
+            - name: init-script
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: init-script
+          configMap:
+            name: mysql-init-script
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.mysql.name }}
+  labels:
+    app: {{ .Values.mysql.name }}
+spec:
+  selector:
+    app: {{ .Values.mysql.name }}
+  ports:
+    - port: {{ .Values.mysql.port }}
+      targetPort: {{ .Values.mysql.port }}

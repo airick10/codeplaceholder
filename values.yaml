@@ -1,0 +1,19 @@
+web:
+  name: demo-web
+  image: <your-internal-registry>/ocpdemoapp:latest
+  port: 8080
+  replicas: 1
+
+mysql:
+  name: mysql
+  image: <your-internal-registry>/mysql:8.0
+  port: 3306
+  replicas: 1
+  database: demodb
+  user: demo
+  password: demo
+  rootPassword: rootpassword
+
+route:
+  enabled: true
+  tls: true
