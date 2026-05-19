@@ -1,0 +1,116 @@
+# ──────────────────────────────────────────
+# SECRET — MongoDB credentials
+# ──────────────────────────────────────────
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mongodb-secret-demo
+type: Opaque
+stringData:
+  MONGO_INITDB_ROOT_USERNAME: demo
+  MONGO_INITDB_ROOT_PASSWORD: demo
+  MONGO_INITDB_DATABASE: demodb
+---
+# ──────────────────────────────────────────
+# DEPLOYMENT — MongoDB pod
+# ──────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb-demo
+  template:
+    metadata:
+      labels:
+        app: mongodb-demo
+    spec:
+      containers:
+        - name: mongodb-demo
+          image: <your-internal-registry>/mongodb-enterprise-server:<tag>
+          ports:
+            - containerPort: 27017
+          envFrom:
+            - secretRef:
+                name: mongodb-secret-demo
+          readinessProbe:
+            exec:
+              command: ["mongosh", "--eval", "db.adminCommand('ping')"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+---
+# ──────────────────────────────────────────
+# SERVICE — MongoDB (internal DNS: mongodb-service:27017)
+# ──────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-service
+spec:
+  selector:
+    app: mongodb-demo
+  ports:
+    - port: 27017
+      targetPort: 27017
+---
+# ──────────────────────────────────────────
+# DEPLOYMENT — Web app pod
+# ──────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-web
+  template:
+    metadata:
+      labels:
+        app: demo-web
+    spec:
+      containers:
+        - name: demo-web
+          image: <your-internal-registry>/ocpdemoapp:latest
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+# ──────────────────────────────────────────
+# SERVICE — Web app
+# ──────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-web
+spec:
+  selector:
+    app: demo-web
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+# ──────────────────────────────────────────
+# ROUTE — Edge TLS (port 443 only)
+# ──────────────────────────────────────────
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: demo-web
+spec:
+  to:
+    kind: Service
+    name: demo-web
+  port:
+    targetPort: 8080
+  tls:
+    termination: edge
