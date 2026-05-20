@@ -39,3 +39,62 @@ spec:
   ports:
     - port: 6379
       targetPort: 6379
+---
+# ──────────────────────────────────────────
+# DEPLOYMENT — Web app pod
+# ──────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-web
+  template:
+    metadata:
+      labels:
+        app: demo-web
+    spec:
+      containers:
+        - name: demo-web
+          image: image-registry.openshift-image-registry.svc:5000/eric/demo-web:latest
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+---
+# ──────────────────────────────────────────
+# SERVICE — Web app
+# ──────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-web
+spec:
+  selector:
+    app: demo-web
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+# ──────────────────────────────────────────
+# ROUTE — Edge TLS (port 443 only)
+# ──────────────────────────────────────────
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: demo-web
+spec:
+  to:
+    kind: Service
+    name: demo-web
+  port:
+    targetPort: 8080
+  tls:
+    termination: edge
