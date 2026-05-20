@@ -1,0 +1,15 @@
+web:
+  name: demo-web
+  image: image-registry.openshift-image-registry.svc:5000/eric/demo-web:latest
+  port: 8080
+  replicas: 1
+
+redis:
+  name: redis-demo
+  image: <your-internal-registry>/redis:<tag>
+  port: 6379
+  replicas: 1
+
+route:
+  enabled: true
+  tls: true
